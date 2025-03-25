@@ -42,28 +42,28 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
   const messageCount = hasSummary ? summary.messageCount : 0;
   
   return (
-    <div className="bg-[#2f3136] rounded-lg overflow-hidden">
-      <div className={`p-4 border-b border-gray-700 flex items-center justify-between ${isTestChannel ? 'bg-purple-900/20' : ''}`}>
+    <div className="bg-[#2f3136] rounded-lg overflow-hidden border-2 border-[#36393f] shadow-lg">
+      <div className={`p-4 border-b border-gray-700 flex items-center justify-between ${isTestChannel ? 'bg-purple-900/30' : 'bg-[#7289da]/10'}`}>
         <div className="flex items-center">
-          <Hash className="text-[#72767d] mr-2 h-4 w-4" />
-          <h3 className="font-medium text-[#dcddde]">{channel.name}</h3>
+          <Hash className={`mr-2 h-5 w-5 ${isTestChannel ? 'text-purple-300' : 'text-[#7289da]'}`} />
+          <h3 className="font-semibold text-[#ffffff]">{channel.name}</h3>
           {isTestChannel && (
-            <span className="ml-2 text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+            <span className="ml-2 text-xs bg-purple-500/40 text-purple-100 px-2 py-0.5 rounded-full font-medium">
               Test Channel
             </span>
           )}
           {hasSummary ? (
-            <span className="ml-2 text-xs bg-[#7289da]/10 text-[#7289da] px-2 py-0.5 rounded-full">
+            <span className="ml-2 text-xs bg-[#7289da]/20 text-[#a3b5ff] px-2 py-0.5 rounded-full font-medium">
               {messageCount} {messageCount === 1 ? 'message' : 'messages'}
             </span>
           ) : (
-            <span className="ml-2 text-xs bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full">
+            <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full font-medium">
               {isTestChannel ? 'Ready for Testing' : 'Processing'}
             </span>
           )}
         </div>
         <button 
-          className="text-[#72767d] hover:text-[#dcddde]"
+          className={`${isTestChannel ? 'text-purple-300' : 'text-[#7289da]'} hover:text-white p-1 bg-black/10 rounded-md`}
           onClick={toggleExpand}
         >
           {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}

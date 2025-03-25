@@ -106,19 +106,19 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
       ) : (
         <div className={`space-y-3 overflow-y-auto transition-all duration-300 ${expanded ? "max-h-96" : "max-h-36"}`}>
           {messages.map((message: DiscordMessage) => (
-            <div key={message.id} className="bg-[#36393f] p-3 rounded-md">
-              <div className="flex items-center mb-1">
-                <div className="w-8 h-8 rounded-full bg-[#7289da] flex items-center justify-center text-white mr-2">
+            <div key={message.id} className="bg-[#36393f] p-3 rounded-md border border-[#40444b] hover:border-[#7289da]/30">
+              <div className="flex items-center mb-2">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#7289da] to-[#5865f2] flex items-center justify-center text-white mr-2 shadow-sm">
                   {message.authorName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <div className="font-medium text-[#dcddde]">{message.authorName}</div>
-                  <div className="text-xs text-[#72767d]">
+                  <div className="font-medium text-white">{message.authorName}</div>
+                  <div className="text-xs text-[#a3b1cf]">
                     {format(new Date(message.createdAt), 'MMM d, yyyy • h:mm a')}
                   </div>
                 </div>
               </div>
-              <div className="pl-10 text-[#dcddde]">{message.content}</div>
+              <div className="pl-11 text-[#dcddde] whitespace-pre-wrap">{message.content}</div>
             </div>
           ))}
         </div>

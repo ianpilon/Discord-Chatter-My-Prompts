@@ -62,21 +62,16 @@ const ServerSummary = ({
       console.log(`Found ${testChannels.length} test channels`);
     }
     
-    // Less strict filtering - show channels even if they don't have summaries yet
+    // IMPORTANT: Show ALL channels in the list, not just ones with summaries
+    // This ensures users can see their channels even if there's no activity
     const filtered = channels.filter(channel => {
-      // Special case: Always include test channels for visibility during testing
-      if (isTestChannel(channel)) {
-        console.log(`Including test channel: ${channel.name} (${channel.id})`);
-        return true;
+      // Include text channels and exclude voice channels
+      if (channel.type !== "0" && channel.type !== "GUILD_TEXT") {
+        return false;
       }
       
-      // If channel has a summary, include it (even if messageCount is 0)
-      if (summaries && Object.keys(summaries).includes(channel.id)) {
-        console.log(`Including channel with summary: ${channel.name}`);
-        return true;
-      }
-      
-      return false;
+      // Show all channels - this is the main change
+      return true;
     });
     
     // Sort channels to put test channels first
