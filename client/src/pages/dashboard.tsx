@@ -110,6 +110,33 @@ const Dashboard = () => {
     }
   });
   
+  // Fetch messages for each channel
+  const {
+    data: messagesMap = {},
+    isLoading: isLoadingMessages
+  } = useQuery<Record<string, any>>({
+    queryKey: ['/api/channel-messages', selectedServerId],
+    enabled: !!selectedServerId && channels.length > 0,
+    queryFn: async () => {
+      const messages: Record<string, any> = {};
+      
+      for (const channel of channels) {
+        try {
+          const response = await fetch(`/api/channels/${channel.id}/messages?limit=10`);
+          if (response.ok) {
+            const data = await response.json();
+            messages[channel.id] = data;
+            console.log(`Fetched messages for channel ${channel.id}:`, data);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch messages for channel ${channel.id}:`, error);
+        }
+      }
+      
+      return messages;
+    }
+  });
+  
   // Get server stats
   const {
     data: serverDetails,
@@ -125,7 +152,7 @@ const Dashboard = () => {
   });
   
   // All data loading status
-  const isLoading = isLoadingServers || isLoadingChannels || isLoadingSummaries || isLoadingServerDetails;
+  const isLoading = isLoadingServers || isLoadingChannels || isLoadingSummaries || isLoadingServerDetails || isLoadingMessages;
   
   // Stats for the stats overview component
   const statsData = {
@@ -351,6 +378,7 @@ const Dashboard = () => {
               server={{ id: selectedServerId, name: serverDetails?.server?.name || "Loading..." }}
               channels={channels}
               summaries={summariesMap}
+              messages={messagesMap}
               isLoading={isLoading}
             />
           )}
@@ -368,6 +396,7 @@ const Dashboard = () => {
                   server={server}
                   channels={serverChannels}
                   summaries={summariesMap}
+                  messages={messagesMap}
                   collapsed={!isExpanded}
                   onViewDetails={() => {
                     if (isExpanded) {

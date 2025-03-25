@@ -25,6 +25,7 @@ interface ServerSummaryProps {
   };
   channels: Channel[];
   summaries: Record<string, ChannelSummary>;
+  messages?: Record<string, any>; // Add messages prop
   collapsed?: boolean;
   onViewDetails?: () => void;
   isLoading: boolean;
@@ -34,6 +35,7 @@ const ServerSummary = ({
   server,
   channels,
   summaries,
+  messages = {},
   collapsed = false,
   onViewDetails,
   isLoading
@@ -176,6 +178,7 @@ const ServerSummary = ({
               key={channel.id}
               channel={channel}
               summary={summaries[channel.id]}
+              messages={messages[channel.id]}
             />
           ))
         ) : (

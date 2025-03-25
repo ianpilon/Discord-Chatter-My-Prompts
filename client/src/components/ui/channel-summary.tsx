@@ -21,9 +21,10 @@ interface ChannelSummaryData {
 interface ChannelSummaryProps {
   channel: Channel;
   summary?: ChannelSummaryData | null;
+  messages?: any[];
 }
 
-const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
+const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   
   const toggleExpand = () => {
