@@ -70,6 +70,8 @@ const Dashboard = () => {
     }
   }, [servers, selectedServerId]);
   
+
+  
   // Fetch channels for all servers
   const {
     data: allChannels = [],

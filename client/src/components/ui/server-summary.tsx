@@ -39,10 +39,20 @@ const ServerSummary = ({
   isLoading
 }: ServerSummaryProps) => {
   const activeChannels = useMemo(() => {
-    return channels.filter(channel => 
-      Object.keys(summaries).includes(channel.id) && 
-      summaries[channel.id]?.messageCount > 0
-    );
+    // Less strict filtering - show channels even if they don't have summaries yet
+    return channels.filter(channel => {
+      // If channel has a summary with messages, include it
+      if (Object.keys(summaries).includes(channel.id) && summaries[channel.id]?.messageCount > 0) {
+        return true;
+      }
+      
+      // Special case: Always include chatbot-testing channel for visibility during testing
+      if (channel.name.toLowerCase() === 'chatbot-testing') {
+        return true;
+      }
+      
+      return false;
+    });
   }, [channels, summaries]);
   
   const totalMessages = useMemo(() => {
@@ -136,8 +146,8 @@ const ServerSummary = ({
           <div className="bg-[#2f3136] rounded-lg p-6 text-center">
             <div className="flex flex-col items-center justify-center space-y-2">
               <Server className="h-8 w-8 text-[#72767d]" />
-              <p className="text-[#dcddde]">No active channels in the last 24 hours</p>
-              <p className="text-sm text-[#72767d]">New summaries will appear here when there's activity</p>
+              <p className="text-[#dcddde]">No active channels in the last hour</p>
+              <p className="text-sm text-[#72767d]">New summaries will appear here when there's recent activity</p>
             </div>
           </div>
         )}
