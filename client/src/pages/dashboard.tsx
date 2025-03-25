@@ -88,6 +88,13 @@ const Dashboard = () => {
     refetchOnReconnect: true, // Refetch when network reconnects
   });
   
+  // Debug: Log the entire server details response
+  useEffect(() => {
+    if (serverDetails) {
+      console.log("Full server details response:", serverDetails);
+    }
+  }, [serverDetails]);
+  
   // Get channels for selected server from serverDetails
   const channels = serverDetails?.channels || [];
   
