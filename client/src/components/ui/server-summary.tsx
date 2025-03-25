@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { Server, Check } from "lucide-react";
+import { Server, Check, Hash, ChevronDown, ChevronUp } from "lucide-react";
 import ChannelSummary from "./channel-summary";
 
 interface Channel {
@@ -177,13 +177,73 @@ const ServerSummary = ({
             />
           ))
         ) : (
-          <div className="bg-[#2f3136] rounded-lg p-6 text-center">
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <Server className="h-8 w-8 text-[#72767d]" />
-              <p className="text-[#dcddde]">No active channels in the last hour</p>
-              <p className="text-sm text-[#72767d]">New summaries will appear here when there's recent activity</p>
+          <>
+            {/* This is a more helpful fallback for when we have no channels */}
+            <div className="bg-[#2f3136] rounded-lg p-6 mb-4 border-2 border-[#7289da]/30">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="flex items-center justify-center w-16 h-16 bg-[#36393f] rounded-full">
+                  <Server className="h-8 w-8 text-[#7289da]" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-white mb-2">No Visible Channels Yet</h3>
+                  <p className="text-[#dcddde] mb-3">This server doesn't have any active channels in the last hour, or we're still loading channels.</p>
+                  <div className="flex flex-col space-y-2 text-sm text-[#b9bbbe] max-w-md mx-auto mb-4">
+                    <div className="flex items-start p-2 bg-black/20 rounded">
+                      <span className="text-[#7289da] font-medium mr-2">•</span>
+                      <p>Try clicking the Refresh button at the top to sync with Discord</p>
+                    </div>
+                    <div className="flex items-start p-2 bg-black/20 rounded">  
+                      <span className="text-[#7289da] font-medium mr-2">•</span>
+                      <p>Make sure your Discord bot has the necessary permissions (View Channels, Read Message History)</p>
+                    </div>
+                    <div className="flex items-start p-2 bg-black/20 rounded">
+                      <span className="text-[#7289da] font-medium mr-2">•</span>
+                      <p>Send some messages in Discord channels to generate activity summaries</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+            
+            {/* Show the chatbot-testing channel even if there's no activity */}
+            <div className="bg-[#2f3136] rounded-lg overflow-hidden border-2 border-purple-500/30 shadow-lg">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between bg-purple-900/30">
+                <div className="flex items-center">
+                  <div className="mr-2 h-5 w-5 text-purple-300">#</div>
+                  <h3 className="font-semibold text-[#ffffff]">chatbot-testing</h3>
+                  <span className="ml-2 text-xs bg-purple-500/40 text-purple-100 px-2 py-0.5 rounded-full font-medium">
+                    Test Channel
+                  </span>
+                </div>
+                <button 
+                  className="text-purple-300 hover:text-white p-1 bg-black/10 rounded-md"
+                  onClick={() => {}}
+                >
+                  ▼
+                </button>
+              </div>
+              
+              <div className="p-4">
+                <div className="py-2">
+                  <p className="text-purple-300 mb-2 font-semibold">Test Channel for Discord Summarizer</p>
+                  <p className="text-[#dcddde] mb-2">
+                    This is a special channel for testing the Discord AI summarization system.
+                  </p>
+                  <div className="mt-4 p-3 border border-dashed border-purple-500 rounded bg-purple-900/10">
+                    <p className="text-sm text-[#dcddde] mb-2">
+                      <strong className="text-purple-300">To test this system:</strong>
+                    </p>
+                    <ol className="list-decimal list-inside text-sm text-[#dcddde] space-y-1">
+                      <li>Send a few messages in a <span className="text-purple-300">chatbot-testing</span> channel on Discord</li>
+                      <li>Wait a moment for the Discord API to register your messages</li>
+                      <li>Click the "Refresh" button at the top of this dashboard</li>
+                      <li>The AI will generate a summary of your conversation</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

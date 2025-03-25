@@ -75,14 +75,39 @@ const Dashboard = () => {
   // Fetch channels for all servers
   const {
     data: allChannels = [],
-    isLoading: isLoadingChannels
+    isLoading: isLoadingChannels,
+    refetch: refetchChannels
   } = useQuery<Channel[]>({
     queryKey: ['/api/servers', selectedServerId, 'channels'],
     enabled: !!selectedServerId,
+    retry: 3,
+    retryDelay: 1000
   });
+  
+  // If we have no channels, let's trigger a sync operation to get them
+  useEffect(() => {
+    if (selectedServerId && allChannels.length === 0 && !isLoadingChannels) {
+      console.log("No channels found, triggering channel sync...");
+      fetch(`/api/servers/${selectedServerId}/channels/sync`, {
+        method: 'POST'
+      }).then(response => {
+        console.log("Channel sync response:", response.status);
+        if (response.ok) {
+          // Wait a moment and then refetch channels
+          setTimeout(() => {
+            refetchChannels();
+          }, 1000);
+        }
+      }).catch(error => {
+        console.error("Error syncing channels:", error);
+      });
+    }
+  }, [selectedServerId, allChannels.length, isLoadingChannels, refetchChannels]);
   
   // Get channels for selected server
   const channels = allChannels.filter(channel => channel.serverId === selectedServerId);
+  
+  console.log("Current channels for selected server:", channels);
   
   // Fetch summaries for each channel
   const {
