@@ -79,8 +79,9 @@ const Dashboard = () => {
     isLoading: isLoadingServerDetails,
     refetch: refetchServerDetails
   } = useQuery<{ server: Server, stats: ServerStats, channels: Channel[] }>({
-    queryKey: ['/api/servers', selectedServerId, 'details'],
+    queryKey: ['/api/servers', selectedServerId],
     enabled: !!selectedServerId,
+    queryFn: () => selectedServerId ? fetchServerDetails(selectedServerId) : Promise.resolve(null),
     staleTime: 5000, // 5 seconds - keep data fresh
     retry: 2, // Retry twice if it fails
     refetchOnWindowFocus: true, // Refetch when user returns to the page
@@ -223,7 +224,7 @@ const Dashboard = () => {
       
       // Immediately force refetch all relevant queries to get fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId] });
       
       // If the background processing is still ongoing, set up a delayed refetch
       if (!data.completed) {
@@ -231,21 +232,19 @@ const Dashboard = () => {
         setTimeout(() => {
           console.log("Performing delayed refetch after background processing");
           queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
-          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId] });
           
           // For the selected server, manually fetch the latest data
-          fetch(`/api/servers/${selectedServerId}`).then(response => {
-            if (response.ok) {
-              return response.json();
-            }
-          }).then(data => {
-            if (data) {
-              // Update the query cache with the fresh data
-              queryClient.setQueryData(['/api/servers', selectedServerId, 'details'], data);
-            }
-          }).catch(err => {
-            console.error("Error in delayed data fetch:", err);
-          });
+          if (selectedServerId) {
+            fetchServerDetails(selectedServerId).then(data => {
+              if (data) {
+                // Update the query cache with the fresh data
+                queryClient.setQueryData(['/api/servers', selectedServerId], data);
+              }
+            }).catch(err => {
+              console.error("Error in delayed data fetch:", err);
+            });
+          }
         }, 10000);
       }
     },
@@ -259,13 +258,13 @@ const Dashboard = () => {
         
         // Still invalidate queries so the user can see updated data
         queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
-        queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId] });
         
         // Set up a delayed refetch to capture the results of background processing
         setTimeout(() => {
           console.log("Performing delayed refetch after timeout error");
           queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
-          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId] });
         }, 10000);
       } else {
         toast({
@@ -309,7 +308,7 @@ const Dashboard = () => {
           console.log(`Performing scheduled refetch after ${delay/1000}s`);
           refetchServerDetails();
           queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
-          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId] });
         }
       }, delay);
     });
