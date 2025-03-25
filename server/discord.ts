@@ -28,8 +28,21 @@ export async function initializeDiscordClient(): Promise<void> {
       return;
     }
 
+    log('Attempting to connect to Discord...', 'discord');
+    
+    // Add additional validation for token format
+    if (!token.startsWith('MTA') && !token.startsWith('MTI') && !token.startsWith('OTk') && !token.startsWith('ODk')) {
+      log('Warning: Discord token may not be in the expected format. Attempting to connect anyway.', 'discord');
+    }
+
     // Connect to Discord
-    await client.login(token);
+    const loginResult = await client.login(token).catch(error => {
+      throw new Error(`Discord login failed: ${error.message}`);
+    });
+
+    if (!loginResult) {
+      throw new Error('Discord login failed: No response from Discord API');
+    }
 
     client.on('ready', () => {
       isConnected = true;
@@ -41,9 +54,14 @@ export async function initializeDiscordClient(): Promise<void> {
       log(`Discord client error: ${error.message}`, 'discord');
     });
 
-  } catch (error) {
+  } catch (error: any) {
     isConnected = false;
-    log(`Failed to initialize Discord client: ${error.message}`, 'discord');
+    log(`Failed to initialize Discord client: ${error?.message || 'Unknown error'}`, 'discord');
+    
+    // Provide more helpful error message
+    if (error?.message?.includes('invalid token')) {
+      log('Please check that your Discord bot token is correct. It should be in the format "XXXXXXXXXXXXXXXXXXXXXXXX.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"', 'discord');
+    }
   }
 }
 
@@ -143,10 +161,10 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     // Fetch messages
     let allMessages: Message[] = [];
     let lastId: string | undefined;
-    let fetchedMessages: Collection<string, Message>;
+    let fetchedMessages: Collection<string, Message<boolean>>;
 
     do {
-      const options: any = { limit: 100 };
+      const options: { limit: number; before?: string } = { limit: 100 };
       if (lastId) options.before = lastId;
 
       fetchedMessages = await channel.messages.fetch(options);
@@ -157,16 +175,17 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
       allMessages = [...allMessages, ...Array.from(recentMessages.values())];
       
       // Update the last ID for pagination
-      lastId = fetchedMessages.last()?.id;
+      const lastMessage = fetchedMessages.last();
+      lastId = lastMessage?.id;
       
       // If the oldest message in this batch is already older than 24 hours, we can stop
-      if (fetchedMessages.last()?.createdAt <= oneDayAgo) break;
+      if (lastMessage && lastMessage.createdAt <= oneDayAgo) break;
       
     } while (fetchedMessages.size === 100);
 
     return allMessages;
-  } catch (error) {
-    log(`Error fetching messages from channel ${channelId}: ${error.message}`, 'discord');
+  } catch (error: any) {
+    log(`Error fetching messages from channel ${channelId}: ${error?.message || 'Unknown error'}`, 'discord');
     return [];
   }
 }

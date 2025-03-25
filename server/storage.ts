@@ -92,6 +92,77 @@ export class MemStorage implements IStorage {
     ];
     
     channels.forEach(channel => this.createChannel(channel));
+    
+    // Sample channel summaries (for demo purposes when Discord connection fails)
+    const channelSummaries: InsertChannelSummary[] = [
+      { 
+        channelId: "channel1", 
+        summary: "Discussions focused on upcoming game jams and sharing of developer resources. Several users shared their latest projects and received feedback from the community.",
+        messageCount: 78,
+        activeUsers: 12,
+        keyTopics: ["Game Jams", "Project Sharing", "Game Engines"],
+        generatedAt: new Date()
+      },
+      { 
+        channelId: "channel2", 
+        summary: "Technical questions about Unity physics system and rendering pipelines. A community member shared a custom shader tutorial that was well-received.",
+        messageCount: 45,
+        activeUsers: 8,
+        keyTopics: ["Unity Physics", "Shader Programming", "Rendering Pipelines"],
+        generatedAt: new Date()
+      },
+      { 
+        channelId: "channel4", 
+        summary: "React 18 features discussion and debugging help for context API issues. Several users discussed migration strategies from class components to hooks.",
+        messageCount: 62,
+        activeUsers: 15,
+        keyTopics: ["React 18", "Context API", "Hooks Migration"],
+        generatedAt: new Date()
+      }
+    ];
+    
+    channelSummaries.forEach(summary => this.createChannelSummary(summary));
+    
+    // Sample server statistics
+    const serverStats: InsertServerStats[] = [
+      {
+        serverId: "server1",
+        totalMessages: 123,
+        activeUsers: 22,
+        activeChannels: 3,
+        percentChange: {
+          messages: 15,
+          users: 8,
+          channels: 0
+        },
+        generatedAt: new Date()
+      },
+      {
+        serverId: "server2",
+        totalMessages: 85,
+        activeUsers: 18,
+        activeChannels: 2,
+        percentChange: {
+          messages: 5,
+          users: -3,
+          channels: 0
+        },
+        generatedAt: new Date()
+      }
+    ];
+    
+    serverStats.forEach(stats => this.createServerStats(stats));
+    
+    // Sample user settings
+    const defaultUserSettings: InsertUserSettings = {
+      userId: 1,
+      summaryFrequency: "24h",
+      detailLevel: "standard",
+      emailNotifications: false,
+      webNotifications: true
+    };
+    
+    this.createUserSettings(defaultUserSettings);
   }
 
   // User methods
