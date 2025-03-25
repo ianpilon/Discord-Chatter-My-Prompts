@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { fetchServerDetails } from "@/lib/api";
 import Sidebar from "@/components/ui/sidebar";
 import ActivityHeader from "@/components/ui/activity-header";
 import StatsOverview from "@/components/ui/stats-overview";
@@ -72,40 +73,42 @@ const Dashboard = () => {
   
 
   
-  // Fetch channels for all servers
+  // Fetch server details (which now includes channels) for the selected server
   const {
-    data: allChannels = [],
-    isLoading: isLoadingChannels,
-    refetch: refetchChannels
-  } = useQuery<Channel[]>({
-    queryKey: ['/api/servers', selectedServerId, 'channels'],
+    data: serverDetails,
+    isLoading: isLoadingServerDetails,
+    refetch: refetchServerDetails
+  } = useQuery<{ server: Server, stats: ServerStats, channels: Channel[] }>({
+    queryKey: ['/api/servers', selectedServerId, 'details'],
     enabled: !!selectedServerId,
-    retry: 3,
-    retryDelay: 1000
+    staleTime: 5000, // 5 seconds - keep data fresh
+    retry: 2, // Retry twice if it fails
+    refetchOnWindowFocus: true, // Refetch when user returns to the page
+    refetchOnReconnect: true, // Refetch when network reconnects
   });
+  
+  // Get channels for selected server from serverDetails
+  const channels = serverDetails?.channels || [];
   
   // If we have no channels, let's trigger a sync operation to get them
   useEffect(() => {
-    if (selectedServerId && allChannels.length === 0 && !isLoadingChannels) {
+    if (selectedServerId && channels.length === 0 && !isLoadingServerDetails) {
       console.log("No channels found, triggering channel sync...");
       fetch(`/api/servers/${selectedServerId}/channels/sync`, {
         method: 'POST'
       }).then(response => {
         console.log("Channel sync response:", response.status);
         if (response.ok) {
-          // Wait a moment and then refetch channels
+          // Wait a moment and then refetch server details
           setTimeout(() => {
-            refetchChannels();
+            refetchServerDetails();
           }, 1000);
         }
       }).catch(error => {
         console.error("Error syncing channels:", error);
       });
     }
-  }, [selectedServerId, allChannels.length, isLoadingChannels, refetchChannels]);
-  
-  // Get channels for selected server
-  const channels = allChannels.filter(channel => channel.serverId === selectedServerId);
+  }, [selectedServerId, channels.length, isLoadingServerDetails, refetchServerDetails]);
   
   console.log("Current channels for selected server:", channels);
   
@@ -162,22 +165,8 @@ const Dashboard = () => {
     }
   });
   
-  // Get server stats
-  const {
-    data: serverDetails,
-    isLoading: isLoadingServerDetails,
-    refetch: refetchServerDetails
-  } = useQuery<{ server: Server, stats: ServerStats }>({
-    queryKey: ['/api/servers', selectedServerId, 'details'],
-    enabled: !!selectedServerId,
-    staleTime: 5000, // 5 seconds - keep data fresh
-    retry: 2, // Retry twice if it fails
-    refetchOnWindowFocus: true, // Refetch when user returns to the page
-    refetchOnReconnect: true // Refetch when network reconnects
-  });
-  
   // All data loading status
-  const isLoading = isLoadingServers || isLoadingChannels || isLoadingSummaries || isLoadingServerDetails || isLoadingMessages;
+  const isLoading = isLoadingServers || isLoadingServerDetails || isLoadingSummaries || isLoadingMessages;
   
   // Stats for the stats overview component
   const statsData = {
@@ -333,7 +322,7 @@ const Dashboard = () => {
   // Auto-trigger summary generation for test channels or when summaries are missing
   // This should only happen once on initial load
   useEffect(() => {
-    if (!selectedServerId || isLoadingChannels || refreshMutation.isPending) return;
+    if (!selectedServerId || isLoadingServerDetails || refreshMutation.isPending) return;
     
     // Only run this auto-trigger once on initial load
     if (initialLoadDoneRef.current) return;
@@ -353,7 +342,7 @@ const Dashboard = () => {
     // Check for channels with the name 'chatbot-testing' or with our specific test channel ID
     const specificTestChannelId = '1332443868473463006';
     const hasChatbotTestingChannel = channels.some(
-      channel => channel.name.toLowerCase() === 'chatbot-testing' || channel.id === specificTestChannelId
+      (channel: Channel) => channel.name.toLowerCase() === 'chatbot-testing' || channel.id === specificTestChannelId
     );
     
     // If we have a test channel or no summaries, and summaries have loaded (or failed to load)
@@ -373,7 +362,7 @@ const Dashboard = () => {
   }, [
     selectedServerId, 
     channels, 
-    isLoadingChannels,
+    isLoadingServerDetails,
     summariesMap,
     isLoadingSummaries,
     refreshMutation
@@ -412,14 +401,15 @@ const Dashboard = () => {
           {servers
             .filter(server => server.id !== selectedServerId)
             .map(server => {
-              const serverChannels = allChannels.filter(channel => channel.serverId === server.id);
+              // For other servers, we don't have their channels loaded yet
+              // We'll just show empty channels for now
               const isExpanded = expandedServers.has(server.id);
               
               return (
                 <ServerSummary
                   key={server.id}
                   server={server}
-                  channels={serverChannels}
+                  channels={[]} // Empty channels for non-selected servers
                   summaries={summariesMap}
                   messages={messagesMap}
                   collapsed={!isExpanded}
