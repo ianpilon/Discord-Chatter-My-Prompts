@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits, TextChannel, Collection, Message } from 'discord.js';
 import { storage } from './storage';
 import { log } from './vite';
+import fetch from 'node-fetch';
 import { 
   type InsertDiscordServer, 
   type InsertDiscordChannel,
@@ -8,19 +9,71 @@ import {
   type DiscordChannel
 } from '@shared/schema';
 
-// Create a new Discord client with only the most basic intent
+// Create Discord client with the required intents
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    // Uncomment these when corresponding privileges are enabled in Discord Developer Portal
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent, // Requires MESSAGE CONTENT INTENT
+    // Add these if you've enabled them in the Discord Developer Portal
     // GatewayIntentBits.GuildMembers,  // Requires SERVER MEMBERS INTENT
-    // GatewayIntentBits.GuildMessages, 
-    // GatewayIntentBits.MessageContent, // Requires MESSAGE CONTENT INTENT
     // GatewayIntentBits.GuildPresences, // Requires PRESENCE INTENT
   ],
 });
 
 let isConnected = false;
+let debugInfo = {
+  tokenValid: false,
+  inGuilds: false,
+  intentsEnabled: false
+};
+
+// Direct REST API test to check token and guild membership
+async function testDiscordToken(token: string): Promise<{ valid: boolean, inGuilds: boolean, botId?: string, botUsername?: string }> {
+  try {
+    // Test the token with a direct API call
+    const response = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: {
+        Authorization: `Bot ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      log(`Discord token test failed: ${response.status} ${response.statusText}`, 'discord');
+      return { valid: false, inGuilds: false };
+    }
+    
+    const botData = await response.json();
+    log(`Discord token is valid for bot: ${botData.username}#${botData.discriminator}`, 'discord');
+    debugInfo.tokenValid = true;
+    
+    // Check if the bot is in any guilds
+    const guildsResponse = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+      headers: {
+        Authorization: `Bot ${token}`
+      }
+    });
+    
+    if (!guildsResponse.ok) {
+      log(`Guild check failed: ${guildsResponse.status} ${guildsResponse.statusText}`, 'discord');
+      return { valid: true, inGuilds: false, botId: botData.id, botUsername: botData.username };
+    }
+    
+    const guilds = await guildsResponse.json();
+    
+    if (Array.isArray(guilds) && guilds.length > 0) {
+      log(`Bot is in ${guilds.length} servers: ${guilds.map(g => g.name).join(', ')}`, 'discord');
+      debugInfo.inGuilds = true;
+      return { valid: true, inGuilds: true, botId: botData.id, botUsername: botData.username };
+    } else {
+      log('Bot is not in any Discord servers. Please invite it to a server.', 'discord');
+      return { valid: true, inGuilds: false, botId: botData.id, botUsername: botData.username };
+    }
+  } catch (error: any) {
+    log(`Discord API test failed: ${error.message}`, 'discord');
+    return { valid: false, inGuilds: false };
+  }
+}
 
 export async function initializeDiscordClient(): Promise<void> {
   try {
@@ -33,11 +86,28 @@ export async function initializeDiscordClient(): Promise<void> {
 
     log('Attempting to connect to Discord...', 'discord');
     
-    // Add additional validation for token format
-    if (!token.startsWith('MTA') && !token.startsWith('MTI') && !token.startsWith('OTk') && !token.startsWith('ODk')) {
-      log('Warning: Discord token may not be in the expected format. Attempting to connect anyway.', 'discord');
+    // First test the token with direct API calls
+    const tokenTest = await testDiscordToken(token);
+    
+    if (!tokenTest.valid) {
+      throw new Error('Discord token is invalid. Please check your token and try again.');
     }
-
+    
+    if (tokenTest.valid && !tokenTest.inGuilds) {
+      log('WARNING: Your bot is not in any Discord servers!', 'discord');
+      log('You need to invite your bot to at least one server for it to function properly.', 'discord');
+      log('Use the following steps to invite your bot:', 'discord');
+      log('1. Go to https://discord.com/developers/applications', 'discord');
+      log('2. Select your application', 'discord');
+      log('3. Go to OAuth2 -> URL Generator', 'discord');
+      log('4. Check "bot" under scopes', 'discord');
+      log('5. Select permissions: Read Messages/View Channels, Read Message History', 'discord');
+      log('6. Copy the generated URL and open it in a browser', 'discord');
+      log('7. Select a server to add your bot to', 'discord');
+      log('', 'discord');
+      log('The bot will continue in limited mode with sample data until invited to a server.', 'discord');
+    }
+    
     // Connect to Discord
     log('Attempting to login with Discord token...', 'discord');
     const loginResult = await client.login(token).catch(error => {
