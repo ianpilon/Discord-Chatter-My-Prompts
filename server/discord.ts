@@ -9,16 +9,15 @@ import {
   type DiscordChannel
 } from '@shared/schema';
 
-// Create Discord client with minimal intents until full permissions are granted
+// Create Discord client with the required intents for message content analysis
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    // These require privileged intents to be enabled in the Discord Developer Portal
-    // Uncomment them after enabling the corresponding intents
-    // GatewayIntentBits.GuildMessages,
-    // GatewayIntentBits.MessageContent, // Requires MESSAGE CONTENT INTENT
-    // GatewayIntentBits.GuildMembers,  // Requires SERVER MEMBERS INTENT
-    // GatewayIntentBits.GuildPresences, // Requires PRESENCE INTENT
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent, // Now enabled in Discord Developer Portal
+    // Additional intents if you've enabled them
+    // GatewayIntentBits.GuildMembers,  // Optional: SERVER MEMBERS INTENT
+    // GatewayIntentBits.GuildPresences, // Optional: PRESENCE INTENT
   ],
 });
 
