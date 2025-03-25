@@ -36,7 +36,7 @@ const ActivityHeader = ({ onRefresh, lastUpdated, isRefreshing }: ActivityHeader
           </svg>
         </button>
         <h1 className="text-lg font-bold text-white">Activity Summary</h1>
-        <span className="ml-2 text-xs bg-[#7289da]/20 text-[#7289da] px-2 py-0.5 rounded-full">Last 24h</span>
+        <span className="ml-2 text-xs bg-[#7289da]/20 text-[#7289da] px-2 py-0.5 rounded-full">Last Hour</span>
       </div>
       
       <div className="flex items-center space-x-2">

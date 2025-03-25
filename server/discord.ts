@@ -272,7 +272,7 @@ export async function syncChannels(serverId: string): Promise<DiscordChannel[]> 
   return savedChannels;
 }
 
-// Get messages from a channel within the last 24 hours
+// Get messages from a channel within the last hour
 export async function getRecentMessages(channelId: string): Promise<Message[]> {
   if (!isConnected || !client.isReady()) {
     throw new Error('Discord client is not connected');
@@ -303,12 +303,11 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     // Cast to a channel type that has messages
     const textChannel = channel as TextChannel;
     
-    // We'll fetch messages from the last 30 days to ensure we have messages
-    // If 7 days is too restrictive, especially for testing
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // We'll fetch messages from the last 1 hour to ensure we have the most recent activity
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
     
-    log(`Fetching messages since: ${thirtyDaysAgo.toISOString()} for channel ${channelName}`, 'discord');
+    log(`Fetching messages since: ${oneHourAgo.toISOString()} for channel ${channelName}`, 'discord');
 
     // Fetch messages
     let allMessages: Message[] = [];
@@ -329,8 +328,15 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
             log(`Message in ${channelName}: From ${msg.author.username} at ${msg.createdAt.toISOString()}: ${msg.content.substring(0, 30)}${msg.content.length > 30 ? '...' : ''}`, 'discord');
           });
           
-          // Add these messages to our collection
-          allMessages = [...allMessages, ...Array.from(initialFetch.values())];
+          // Filter initial messages to only include those from the last hour
+          const initialRecentMessages = Array.from(initialFetch.values()).filter(msg => 
+            msg.createdAt > oneHourAgo
+          );
+          
+          log(`Found ${initialRecentMessages.length} messages from the last hour in initial fetch`, 'discord');
+          
+          // Add these filtered messages to our collection
+          allMessages = [...allMessages, ...initialRecentMessages];
         }
       } catch (initErr: any) {
         log(`Error in initial message fetch for ${channelName}: ${initErr.message}`, 'discord');
@@ -351,8 +357,13 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
               break;
             }
             
-            // No time filtering - we want ALL messages for debugging
-            allMessages = [...allMessages, ...Array.from(fetchedMessages.values())];
+            // Filter messages to only include those from the last hour
+            const recentMessages = Array.from(fetchedMessages.values()).filter(msg => 
+              msg.createdAt > oneHourAgo
+            );
+            
+            log(`Found ${recentMessages.length} messages from the last hour in this batch`, 'discord');
+            allMessages = [...allMessages, ...recentMessages];
             
             // Update the last ID for pagination
             const lastMessage = fetchedMessages.last();

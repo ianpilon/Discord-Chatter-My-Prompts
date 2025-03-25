@@ -40,7 +40,7 @@ export async function generateAllServerSummaries() {
       for (const channel of channels) {
         if (!channel.isActive) continue;
         
-        // Get messages from the last 24 hours
+        // Get messages from the last hour
         const messages = await getRecentMessages(channel.id);
         if (messages.length === 0) continue;
         
@@ -170,7 +170,7 @@ export async function generateServerSummary(serverId: string) {
       
       log(`Processing channel ${channel.name} (${channel.id})`, 'scheduler');
       
-      // Get messages from the last 7 days (we expanded this timeframe in discord.ts)
+      // Get messages from the last hour
       const messages = await getRecentMessages(channel.id);
       log(`Retrieved ${messages.length} messages from channel ${channel.name}`, 'scheduler');
       
