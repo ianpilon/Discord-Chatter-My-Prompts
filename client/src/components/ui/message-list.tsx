@@ -96,11 +96,32 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
           Failed to load messages
         </div>
       ) : !hasMessages ? (
-        <div className="text-[#72767d] py-3 px-4 bg-[#36393f] rounded-md">
+        <div className={`${isTestChannel ? 'border-2 border-purple-500/30 bg-[#36393f]' : 'bg-[#36393f]'} rounded-md overflow-hidden`}>
           {isTestChannel ? (
-            <p>No messages yet in this test channel. Send some messages on Discord to see them appear here.</p>
+            <div className="p-4">
+              <div className="flex items-center mb-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm mr-2 shadow-sm">
+                  AI
+                </div>
+                <div>
+                  <div className="font-medium text-white">Discord Chatter</div>
+                  <div className="text-xs text-purple-300">{format(new Date(), 'MMM d, yyyy • h:mm a')}</div>
+                </div>
+              </div>
+              <div className="pl-11 text-[#dcddde] whitespace-pre-wrap space-y-3">
+                <p className="bg-purple-800/10 p-2 rounded border border-purple-500/20">
+                  This is a test channel for the Discord AI summarization system. Send some messages in a <span className="text-purple-400 font-medium">chatbot-testing</span> channel on Discord to see them appear here.
+                </p>
+                <div className="flex items-center text-sm text-[#72767d] mt-2">
+                  <AlertCircle className="h-4 w-4 mr-2 text-purple-400" />
+                  <p>No messages found in the last hour. Try sending some test messages!</p>
+                </div>
+              </div>
+            </div>
           ) : (
-            <p>No recent messages in this channel in the last hour.</p>
+            <div className="py-3 px-4 text-[#72767d]">
+              <p>No recent messages in this channel in the last hour.</p>
+            </div>
           )}
         </div>
       ) : (
