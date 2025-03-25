@@ -41,6 +41,22 @@ export const fetchChannelSummary = async (channelId: string) => {
   return response.json();
 };
 
+// Messages-related API calls
+export const fetchChannelMessages = async (channelId: string, limit?: number) => {
+  const url = limit 
+    ? `/api/channels/${channelId}/messages?limit=${limit}` 
+    : `/api/channels/${channelId}/messages`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    if (response.status === 404) {
+      return []; // No messages found
+    }
+    throw new Error(`Failed to fetch messages for channel ${channelId}`);
+  }
+  return response.json();
+};
+
 export const generateServerSummary = async (serverId: string) => {
   const response = await apiRequest('POST', `/api/servers/${serverId}/generate-summary`, {});
   return response.json();

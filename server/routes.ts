@@ -192,6 +192,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get recent messages for a channel
+  app.get("/api/channels/:channelId/messages", async (req: Request, res: Response) => {
+    try {
+      const channelId = req.params.channelId;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      
+      // Get messages from storage
+      const messages = await storage.getChannelMessages(channelId, limit);
+      
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error fetching channel messages:", error);
+      res.status(500).json({ message: `Failed to fetch channel messages: ${error.message}` });
+    }
+  });
+  
   // Manually trigger summary generation for a server
   app.post("/api/servers/:serverId/generate-summary", async (req: Request, res: Response) => {
     const serverId = req.params.serverId;

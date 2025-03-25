@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Hash, ChevronDown, ChevronUp } from "lucide-react";
+import { Hash, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
+import MessageList from "./message-list";
 
 interface Channel {
   id: string;
@@ -87,6 +88,9 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
                   </div>
                 </div>
               )}
+              
+              {/* Add the MessageList component for channels with summaries */}
+              <MessageList channelId={channel.id} limit={20} />
             </>
           ) : isTestChannel ? (
             <div className="py-2">
@@ -108,6 +112,9 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
               <p className="text-xs text-[#72767d] mt-3">
                 Channel ID: {channel.id}
               </p>
+              
+              {/* Add the MessageList component for test channels */}
+              <MessageList channelId={channel.id} limit={10} isTestChannel={true} />
             </div>
           ) : (
             <div className="py-2">
@@ -116,6 +123,9 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
                 This channel is being monitored, but no summary has been generated yet.
                 This could be because there are no recent messages in the last hour.
               </p>
+              
+              {/* Add the MessageList component for channels without summaries */}
+              <MessageList channelId={channel.id} limit={5} />
             </div>
           )}
         </div>
