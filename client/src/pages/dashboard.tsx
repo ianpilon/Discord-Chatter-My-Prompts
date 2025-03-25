@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -273,6 +273,51 @@ const Dashboard = () => {
       }, delay);
     });
   }, [selectedServerId, refreshMutation.isPending, refetchServerDetails, queryClient]);
+  
+  // Create a ref at component level, outside of the useEffect
+  const autoTriggerRef = React.useRef(false);
+  
+  // Auto-trigger summary generation for test channels or when summaries are missing
+  useEffect(() => {
+    if (!selectedServerId || isLoadingChannels || refreshMutation.isPending) return;
+    
+    // Check if we've already triggered a summary generation
+    if (autoTriggerRef.current) return;
+    
+    // Check for channels with the name 'chatbot-testing' or with our specific test channel ID
+    const specificTestChannelId = '1332443868473463006';
+    const hasChatbotTestingChannel = channels.some(
+      channel => channel.name.toLowerCase() === 'chatbot-testing' || channel.id === specificTestChannelId
+    );
+    
+    const hasSummaries = Object.keys(summariesMap).length > 0;
+    
+    // If we have a test channel or no summaries, and summaries have loaded (or failed to load)
+    // then trigger a summary generation
+    if ((hasChatbotTestingChannel || !hasSummaries) && !isLoadingSummaries) {
+      console.log("Auto-triggering summary generation for test channel or missing summaries");
+      
+      // Add a slight delay to avoid immediate re-triggering
+      const timeoutId = setTimeout(() => {
+        autoTriggerRef.current = true;  // Set flag to prevent repeated triggering
+        refreshMutation.mutate();
+        
+        // Reset the flag after some time so we can auto-trigger again if needed
+        setTimeout(() => {
+          autoTriggerRef.current = false;
+        }, 30000);  // Wait 30 seconds before allowing another auto-trigger
+      }, 1000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    selectedServerId, 
+    channels, 
+    isLoadingChannels,
+    summariesMap,
+    isLoadingSummaries,
+    refreshMutation
+  ]);
   
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#36393f] text-[#dcddde]">

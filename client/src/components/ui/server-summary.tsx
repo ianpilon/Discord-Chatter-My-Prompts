@@ -41,13 +41,19 @@ const ServerSummary = ({
   const activeChannels = useMemo(() => {
     // Less strict filtering - show channels even if they don't have summaries yet
     return channels.filter(channel => {
-      // If channel has a summary with messages, include it
-      if (Object.keys(summaries).includes(channel.id) && summaries[channel.id]?.messageCount > 0) {
+      // Special case: Always include chatbot-testing channel for visibility during testing
+      if (channel.name.toLowerCase() === 'chatbot-testing') {
         return true;
       }
       
-      // Special case: Always include chatbot-testing channel for visibility during testing
-      if (channel.name.toLowerCase() === 'chatbot-testing') {
+      // Special case: Include our specific test channel by ID
+      const specificTestChannelId = '1332443868473463006';
+      if (channel.id === specificTestChannelId) {
+        return true;
+      }
+      
+      // If channel has a summary, include it (even if messageCount is 0)
+      if (Object.keys(summaries).includes(channel.id)) {
         return true;
       }
       

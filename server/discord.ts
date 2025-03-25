@@ -245,13 +245,17 @@ export async function syncChannels(serverId: string): Promise<DiscordChannel[]> 
       // Special exception for "chatbot-testing" channel
       const isChatbotTesting = channel.name.toLowerCase() === 'chatbot-testing';
       
-      // Exclude other bot/command channels (except chatbot-testing)
-      const isExcluded = !isChatbotTesting && 
+      // Special exception for a specific testing channel by ID
+      const specificTestChannelId = '1332443868473463006'; // ID for a test channel
+      const isSpecificTestChannel = channel.id === specificTestChannelId;
+      
+      // Exclude other bot/command channels (except chatbot-testing and specific test channel)
+      const isExcluded = !isChatbotTesting && !isSpecificTestChannel &&
                        (channel.name.toLowerCase().includes('bot') || 
                         channel.name.toLowerCase().includes('command'));
         
-      // Include the channel if it's a text channel and not excluded
-      const shouldInclude = isTextChannel && !isExcluded;
+      // Include the channel if it's a text channel and not excluded or if it's our specific test channel
+      const shouldInclude = (isTextChannel && !isExcluded) || isSpecificTestChannel;
       
       // Debug log
       log(`Channel filter: ${channel.name} - isTextChannel: ${isTextChannel}, isChatbotTesting: ${isChatbotTesting}, isExcluded: ${isExcluded}, shouldInclude: ${shouldInclude}`, 'discord');

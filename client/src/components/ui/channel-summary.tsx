@@ -19,7 +19,7 @@ interface ChannelSummaryData {
 
 interface ChannelSummaryProps {
   channel: Channel;
-  summary: ChannelSummaryData;
+  summary?: ChannelSummaryData | null;
 }
 
 const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
@@ -82,7 +82,7 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
               <p className="text-[#dcddde] mb-2">Generating summary for this channel...</p>
               <p className="text-xs text-[#72767d]">
                 This channel is being monitored, but no summary has been generated yet.
-                {channel.name.toLowerCase() === 'chatbot-testing' && 
+                {(channel.name.toLowerCase() === 'chatbot-testing' || channel.id === '1332443868473463006') && 
                   " This is a test channel - you can send messages here to see how they're processed."}
               </p>
             </div>
