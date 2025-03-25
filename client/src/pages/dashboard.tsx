@@ -111,12 +111,15 @@ const Dashboard = () => {
   // Get server stats
   const {
     data: serverDetails,
-    isLoading: isLoadingServerDetails
+    isLoading: isLoadingServerDetails,
+    refetch: refetchServerDetails
   } = useQuery<{ server: Server, stats: ServerStats }>({
     queryKey: ['/api/servers', selectedServerId, 'details'],
     enabled: !!selectedServerId,
-    staleTime: 30000, // 30 seconds
+    staleTime: 5000, // 5 seconds - keep data fresh
     retry: 2, // Retry twice if it fails
+    refetchOnWindowFocus: true, // Refetch when user returns to the page
+    refetchOnReconnect: true // Refetch when network reconnects
   });
   
   // All data loading status
@@ -158,27 +161,69 @@ const Dashboard = () => {
         throw error;
       }
     },
-    onSuccess: () => {
-      toast({
-        title: "Refreshed",
-        description: "Activity summaries have been refreshed.",
-      });
+    onSuccess: (data) => {
+      // If processing was completed, show the full stats in the toast
+      if (data.completed && data.stats) {
+        toast({
+          title: "Refreshed",
+          description: `Activity summaries refreshed. Found ${data.stats.totalMessages} messages from ${data.stats.activeUsers} users across ${data.stats.activeChannels} channels.`,
+        });
+      } else {
+        // For background processing, show a different message
+        toast({
+          title: "Refreshed",
+          description: "Activity summaries are refreshing. Data will update shortly.",
+        });
+      }
       
-      // Invalidate relevant queries
+      console.log("Refresh mutation succeeded with data:", data);
+      
+      // Immediately force refetch all relevant queries to get fresh data
       queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
       queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+      
+      // If the background processing is still ongoing, set up a delayed refetch
+      if (!data.completed) {
+        // Set a timeout to refetch the data after 10 seconds
+        setTimeout(() => {
+          console.log("Performing delayed refetch after background processing");
+          queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+          
+          // For the selected server, manually fetch the latest data
+          fetch(`/api/servers/${selectedServerId}`).then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+          }).then(data => {
+            if (data) {
+              // Update the query cache with the fresh data
+              queryClient.setQueryData(['/api/servers', selectedServerId, 'details'], data);
+            }
+          }).catch(err => {
+            console.error("Error in delayed data fetch:", err);
+          });
+        }, 10000);
+      }
     },
     onError: (error: any) => {
       // For timeout errors, give a more helpful message but still invalidate queries
       if (error.message?.includes('still running in the background')) {
         toast({
           title: "Processing in background",
-          description: "The summaries are being generated in the background. Try refreshing the page in a minute.",
+          description: "The summaries are being generated in the background. The data will be automatically updated in a few seconds.",
         });
         
-        // Still invalidate queries so the user can see updated data if they refresh
+        // Still invalidate queries so the user can see updated data
         queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
         queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+        
+        // Set up a delayed refetch to capture the results of background processing
+        setTimeout(() => {
+          console.log("Performing delayed refetch after timeout error");
+          queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+        }, 10000);
       } else {
         toast({
           title: "Error",
@@ -208,9 +253,24 @@ const Dashboard = () => {
   }, []);
   
   // Handle refresh button click
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     refreshMutation.mutate();
-  };
+    
+    // Set up multiple delayed refetches to ensure we catch the updated data
+    // even if the background processing takes longer than expected
+    const refetchTimes = [5000, 15000, 30000]; // 5s, 15s, 30s
+    
+    refetchTimes.forEach(delay => {
+      setTimeout(() => {
+        if (!refreshMutation.isPending) {
+          console.log(`Performing scheduled refetch after ${delay/1000}s`);
+          refetchServerDetails();
+          queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
+          queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+        }
+      }, delay);
+    });
+  }, [selectedServerId, refreshMutation.isPending, refetchServerDetails, queryClient]);
   
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#36393f] text-[#dcddde]">
