@@ -200,8 +200,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get messages from storage
       const messages = await storage.getChannelMessages(channelId, limit);
+      log(`Retrieved ${messages.length} messages for channel ${channelId}`, 'express');
       
-      res.json(messages);
+      // Send messages wrapped in an object for consistency
+      res.json({ messages });
     } catch (error: any) {
       console.error("Error fetching channel messages:", error);
       res.status(500).json({ message: `Failed to fetch channel messages: ${error.message}` });

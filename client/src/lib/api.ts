@@ -47,14 +47,24 @@ export const fetchChannelMessages = async (channelId: string, limit?: number) =>
     ? `/api/channels/${channelId}/messages?limit=${limit}` 
     : `/api/channels/${channelId}/messages`;
   
-  const response = await fetch(url);
-  if (!response.ok) {
-    if (response.status === 404) {
-      return []; // No messages found
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { messages: [] }; // No messages found
+      }
+      throw new Error(`Failed to fetch messages for channel ${channelId}`);
     }
-    throw new Error(`Failed to fetch messages for channel ${channelId}`);
+    
+    const data = await response.json();
+    console.log('API response for messages:', data);
+    
+    // Make sure we return in the expected format
+    return { messages: Array.isArray(data) ? data : (data.messages || []) };
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    return { messages: [] };
   }
-  return response.json();
 };
 
 export const generateServerSummary = async (serverId: string) => {

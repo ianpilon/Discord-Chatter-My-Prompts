@@ -32,6 +32,7 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageLi
     queryKey: ['/api/channels/messages', channelId],
     queryFn: async () => {
       const response = await fetchChannelMessages(channelId, limit);
+      console.log("Messages response for channel", channelId, ":", response);
       return response;
     },
     enabled: !!channelId,
@@ -39,7 +40,7 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageLi
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const messages = messagesData || [];
+  const messages = messagesData?.messages || [];
   const hasMessages = Array.isArray(messages) && messages.length > 0;
   
   return (
