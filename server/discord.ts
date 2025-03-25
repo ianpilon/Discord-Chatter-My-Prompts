@@ -8,11 +8,15 @@ import {
   type DiscordChannel
 } from '@shared/schema';
 
-// Create a new Discord client with necessary intents
+// Create a new Discord client with only the most basic intent
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    // Only using non-privileged intents for now
+    // Uncomment these when corresponding privileges are enabled in Discord Developer Portal
+    // GatewayIntentBits.GuildMembers,  // Requires SERVER MEMBERS INTENT
+    // GatewayIntentBits.GuildMessages, 
+    // GatewayIntentBits.MessageContent, // Requires MESSAGE CONTENT INTENT
+    // GatewayIntentBits.GuildPresences, // Requires PRESENCE INTENT
   ],
 });
 
@@ -35,6 +39,7 @@ export async function initializeDiscordClient(): Promise<void> {
     }
 
     // Connect to Discord
+    log('Attempting to login with Discord token...', 'discord');
     const loginResult = await client.login(token).catch(error => {
       throw new Error(`Discord login failed: ${error.message}`);
     });
@@ -42,16 +47,45 @@ export async function initializeDiscordClient(): Promise<void> {
     if (!loginResult) {
       throw new Error('Discord login failed: No response from Discord API');
     }
-
+    
+    log('Discord login successful, waiting for ready event...', 'discord');
+    
+    // Set up event handlers
     client.on('ready', () => {
       isConnected = true;
       log(`Logged in as ${client.user?.tag}!`, 'discord');
+      log(`Connected to ${client.guilds.cache.size} servers`, 'discord');
+      
+      // List servers the bot is connected to
+      client.guilds.cache.forEach(guild => {
+        log(`- ${guild.name} (${guild.id})`, 'discord');
+      });
     });
 
     client.on('error', (error) => {
       isConnected = false;
       log(`Discord client error: ${error.message}`, 'discord');
     });
+    
+    // Set a timeout to check if we ever get the ready event
+    setTimeout(() => {
+      if (!isConnected) {
+        log('Discord client did not receive ready event after 5 seconds', 'discord');
+        log('This may indicate one of these issues:', 'discord');
+        log('1. The bot has not been invited to any Discord servers', 'discord');
+        log('2. You need to enable intents in the Discord Developer Portal', 'discord');
+        log('3. There might be network connectivity issues', 'discord');
+        log('', 'discord');
+        log('To invite your bot to a server:', 'discord');
+        log('1. Go to https://discord.com/developers/applications', 'discord');
+        log('2. Select your application', 'discord');
+        log('3. Go to OAuth2 -> URL Generator', 'discord');
+        log('4. Check "bot" under scopes', 'discord');
+        log('5. Select permissions: Read Messages/View Channels, Read Message History', 'discord');
+        log('6. Copy the generated URL and open it in a browser', 'discord');
+        log('7. Select a server to add your bot to', 'discord');
+      }
+    }, 5000);
 
   } catch (error: any) {
     isConnected = false;
