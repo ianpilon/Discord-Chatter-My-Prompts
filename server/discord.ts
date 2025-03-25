@@ -6,7 +6,9 @@ import {
   type InsertDiscordServer, 
   type InsertDiscordChannel,
   type DiscordServer,
-  type DiscordChannel
+  type DiscordChannel,
+  type InsertDiscordMessage,
+  type DiscordMessage
 } from '@shared/schema';
 
 // Create Discord client with the required intents for message content analysis
@@ -421,10 +423,28 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
       
       log(`Completed message fetch loop for ${channelName}. Total messages: ${allMessages.length}`, 'discord');
       
-      // Log all messages for this channel
-      allMessages.forEach((msg, index) => {
-        log(`Message ${index + 1} in ${channelName}: From ${msg.author.username} at ${msg.createdAt.toISOString()}: ${msg.content.substring(0, 50)}${msg.content.length > 50 ? '...' : ''}`, 'discord');
-      });
+      // Log all messages for this channel and store them in the database
+      for (const msg of allMessages) {
+        log(`Message ${allMessages.indexOf(msg) + 1} in ${channelName}: From ${msg.author.username} at ${msg.createdAt.toISOString()}: ${msg.content.substring(0, 50)}${msg.content.length > 50 ? '...' : ''}`, 'discord');
+        
+        // Store message in database
+        try {
+          const messageData: InsertDiscordMessage = {
+            id: msg.id,
+            channelId: channelId,
+            authorId: msg.author.id,
+            authorName: msg.author.username,
+            content: msg.content,
+            createdAt: msg.createdAt,
+            processedAt: new Date()
+          };
+          
+          await storage.createMessage(messageData);
+          log(`Stored message ${msg.id} in database`, 'discord');
+        } catch (error: any) {
+          log(`Error storing message ${msg.id} in database: ${error.message}`, 'discord');
+        }
+      }
       
     } catch (err: any) {
       // If there's an error fetching messages (e.g., permission issues)

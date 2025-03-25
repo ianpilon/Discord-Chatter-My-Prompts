@@ -4,7 +4,8 @@ import {
   discordChannels, type DiscordChannel, type InsertDiscordChannel,
   channelSummaries, type ChannelSummary, type InsertChannelSummary,
   serverStats, type ServerStats, type InsertServerStats,
-  userSettings, type UserSettings, type InsertUserSettings
+  userSettings, type UserSettings, type InsertUserSettings,
+  discordMessages, type DiscordMessage, type InsertDiscordMessage
 } from "@shared/schema";
 
 export interface IStorage {
@@ -37,6 +38,10 @@ export interface IStorage {
   getUserSettings(userId: number): Promise<UserSettings | undefined>;
   createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
   updateUserSettings(id: number, settings: Partial<InsertUserSettings>): Promise<UserSettings | undefined>;
+  
+  // Discord messages methods
+  getChannelMessages(channelId: string, limit?: number): Promise<DiscordMessage[]>;
+  createMessage(message: InsertDiscordMessage): Promise<DiscordMessage>;
 }
 
 export class MemStorage implements IStorage {
@@ -46,6 +51,7 @@ export class MemStorage implements IStorage {
   private channelSummaries: Map<number, ChannelSummary>;
   private serverStats: Map<number, ServerStats>;
   private userSettings: Map<number, UserSettings>;
+  private discordMessages: Map<string, DiscordMessage>;
   
   private userCurrentId: number;
   private channelSummaryCurrentId: number;
@@ -59,6 +65,7 @@ export class MemStorage implements IStorage {
     this.channelSummaries = new Map();
     this.serverStats = new Map();
     this.userSettings = new Map();
+    this.discordMessages = new Map();
     
     this.userCurrentId = 1;
     this.channelSummaryCurrentId = 1;
@@ -388,6 +395,30 @@ export class MemStorage implements IStorage {
     const updatedSettings = { ...settings, ...settingsUpdate };
     this.userSettings.set(id, updatedSettings);
     return updatedSettings;
+  }
+  
+  // Discord messages methods
+  async getChannelMessages(channelId: string, limit: number = 30): Promise<DiscordMessage[]> {
+    return Array.from(this.discordMessages.values())
+      .filter(message => message.channelId === channelId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
+  
+  async createMessage(message: InsertDiscordMessage): Promise<DiscordMessage> {
+    // Use the message ID from Discord as our primary key
+    const newMessage: DiscordMessage = {
+      id: message.id,
+      channelId: message.channelId,
+      authorId: message.authorId,
+      authorName: message.authorName,
+      content: message.content,
+      createdAt: message.createdAt,
+      processedAt: message.processedAt !== undefined ? message.processedAt : new Date()
+    };
+    
+    this.discordMessages.set(message.id, newMessage);
+    return newMessage;
   }
 }
 
