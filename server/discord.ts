@@ -232,13 +232,31 @@ export async function syncChannels(serverId: string): Promise<DiscordChannel[]> 
   // 0: GUILD_TEXT, 5: GUILD_ANNOUNCEMENT, 15: GUILD_FORUM
   const textChannelTypes = [0, 5, 15];
   
+  // Log all channels for debugging
+  guild.channels.cache.forEach(channel => {
+    log(`Channel in guild: ${channel.name} (${channel.id}) - Type: ${channel.type}`, 'discord');
+  });
+
   const channels = guild.channels.cache
     .filter(channel => {
       // Filter for text-based channels
-      return textChannelTypes.includes(channel.type) && 
-             // Exclude channels with 'bot' or 'command' in the name (common bot channels)
-             !channel.name.toLowerCase().includes('bot') && 
-             !channel.name.toLowerCase().includes('command');
+      const isTextChannel = textChannelTypes.includes(channel.type);
+      
+      // Special exception for "chatbot-testing" channel
+      const isChatbotTesting = channel.name.toLowerCase() === 'chatbot-testing';
+      
+      // Exclude other bot/command channels (except chatbot-testing)
+      const isExcluded = !isChatbotTesting && 
+                       (channel.name.toLowerCase().includes('bot') || 
+                        channel.name.toLowerCase().includes('command'));
+        
+      // Include the channel if it's a text channel and not excluded
+      const shouldInclude = isTextChannel && !isExcluded;
+      
+      // Debug log
+      log(`Channel filter: ${channel.name} - isTextChannel: ${isTextChannel}, isChatbotTesting: ${isChatbotTesting}, isExcluded: ${isExcluded}, shouldInclude: ${shouldInclude}`, 'discord');
+      
+      return shouldInclude;
     })
     .map(channel => {
       // Determine channel type for display
@@ -307,7 +325,12 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     const oneHourAgo = new Date();
     oneHourAgo.setHours(oneHourAgo.getHours() - 1);
     
-    log(`Fetching messages since: ${oneHourAgo.toISOString()} for channel ${channelName}`, 'discord');
+    // Set seconds and milliseconds to zero to avoid millisecond comparison issues
+    oneHourAgo.setSeconds(0);
+    oneHourAgo.setMilliseconds(0);
+    
+    log(`Fetching messages since: ${oneHourAgo.toISOString()} for channel ${channelName} (${channelId})`, 'discord');
+    log(`Current channel info - Name: ${channelName}, ID: ${channelId}, Type: ${textChannel.type}`, 'discord');
 
     // Fetch messages
     let allMessages: Message[] = [];
@@ -317,10 +340,12 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     try {
       log(`Starting message fetch loop for channel ${channelName} (${channelId})`, 'discord');
       
-      // First attempt - get without filtering
+      // First attempt - get the most recent messages
       try {
-        const initialFetch = await textChannel.messages.fetch({ limit: 10 });
+        // Increase the limit to make sure we get recent messages
+        const initialFetch = await textChannel.messages.fetch({ limit: 30 });
         log(`Initial fetch returned ${initialFetch.size} messages from ${channelName}`, 'discord');
+        log(`Current time: ${new Date().toISOString()}`, 'discord');
         
         if (initialFetch.size > 0) {
           // Log all messages for debugging
@@ -329,9 +354,13 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
           });
           
           // Filter initial messages to only include those from the last hour
-          const initialRecentMessages = Array.from(initialFetch.values()).filter(msg => 
-            msg.createdAt > oneHourAgo
-          );
+          const initialRecentMessages = Array.from(initialFetch.values()).filter(msg => {
+            // Log each message's creation date for debugging
+            const msgDate = msg.createdAt;
+            const isRecent = msgDate > oneHourAgo;
+            log(`Message date check: ${msgDate.toISOString()} > ${oneHourAgo.toISOString()} = ${isRecent}`, 'discord');
+            return isRecent;
+          });
           
           log(`Found ${initialRecentMessages.length} messages from the last hour in initial fetch`, 'discord');
           
@@ -358,9 +387,13 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
             }
             
             // Filter messages to only include those from the last hour
-            const recentMessages = Array.from(fetchedMessages.values()).filter(msg => 
-              msg.createdAt > oneHourAgo
-            );
+            const recentMessages = Array.from(fetchedMessages.values()).filter(msg => {
+              // Log each message's creation date for debugging
+              const msgDate = msg.createdAt;
+              const isRecent = msgDate > oneHourAgo;
+              log(`Message date check: ${msgDate.toISOString()} > ${oneHourAgo.toISOString()} = ${isRecent}`, 'discord');
+              return isRecent;
+            });
             
             log(`Found ${recentMessages.length} messages from the last hour in this batch`, 'discord');
             allMessages = [...allMessages, ...recentMessages];
