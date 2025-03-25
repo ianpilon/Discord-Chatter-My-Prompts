@@ -103,7 +103,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const stats = await storage.getLatestServerStats(serverId);
       
-      res.json({ server, stats });
+      // Also get channels for this server to include in the response
+      const channels = await storage.getChannels(serverId);
+      log(`Server ${serverId} has ${channels.length} channels in storage`, 'express');
+      
+      // Include channels in the response for easier client access
+      res.json({ 
+        server, 
+        stats,
+        channels: channels.filter(channel => channel.type === "0" || channel.type === "GUILD_TEXT") 
+      });
     } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch server details: ${error.message}` });
     }
