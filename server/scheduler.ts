@@ -13,7 +13,7 @@ export function scheduleDiscordSummaryJob() {
       log('Starting scheduled Discord summary generation', 'scheduler');
       await generateAllServerSummaries();
       log('Completed scheduled Discord summary generation', 'scheduler');
-    } catch (error) {
+    } catch (error: any) {
       log(`Error in scheduled job: ${error.message}`, 'scheduler');
     }
   });
@@ -101,7 +101,7 @@ export async function generateAllServerSummaries() {
     }
     
     return true;
-  } catch (error) {
+  } catch (error: any) {
     log(`Error generating server summaries: ${error.message}`, 'scheduler');
     return false;
   }
@@ -128,7 +128,26 @@ export async function generateServerSummary(serverId: string) {
     
     // Get all channels for this server
     const channels = await storage.getChannels(serverId);
-    log(`Found ${channels.length} channels for server ${serverId}`, 'scheduler');
+    
+    // Check if channels are empty, if so try to sync them
+    if (channels.length === 0) {
+      log(`No channels found for server ${serverId}, attempting to sync from Discord`, 'scheduler');
+      const discordModule = require('./discord');
+      try {
+        await discordModule.syncChannels(serverId);
+        // Try getting channels again after sync
+        const syncedChannels = await storage.getChannels(serverId);
+        log(`After sync: found ${syncedChannels.length} channels for server ${serverId}`, 'scheduler');
+        // Use the synced channels if we got any
+        if (syncedChannels.length > 0) {
+          channels.push(...syncedChannels);
+        }
+      } catch (syncError: any) {
+        log(`Error syncing channels: ${syncError.message}`, 'scheduler');
+      }
+    } else {
+      log(`Found ${channels.length} channels for server ${serverId}`, 'scheduler');
+    }
     
     let totalMessages = 0;
     let activeChannelsCount = 0;
@@ -225,7 +244,7 @@ export async function generateServerSummary(serverId: string) {
     await storage.updateServer(serverId, { lastSynced: new Date() });
     
     return serverStats;
-  } catch (error) {
+  } catch (error: any) {
     log(`Error generating server summary: ${error.message}`, 'scheduler');
     throw error;
   }

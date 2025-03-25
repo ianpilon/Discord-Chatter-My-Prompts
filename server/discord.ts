@@ -285,24 +285,30 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
       throw new Error(`Channel with ID ${channelId} not found`);
     }
     
-    log(`Channel ${channelId} found: ${channel.constructor.name} - Type: ${channel.type}`, 'discord');
+    const channelName = 'name' in channel ? channel.name : 'unknown';
+    log(`Channel ${channelId} (${channelName}) found: ${channel.constructor.name} - Type: ${channel.type}`, 'discord');
+    
+    // Special handling for general channel
+    if (channelName === 'first-landing-room' || channelName === 'general' || channelName === 'chat-room') {
+      log(`This is a main channel (${channelName}), fetching with extra attention`, 'discord');
+    }
     
     // Check if the channel has message fetching capabilities
     // TextChannel, NewsChannel, ThreadChannel have fetchMessages
     if (!('messages' in channel)) {
-      log(`Channel ${channelId} (${channel.type}) does not support message fetching`, 'discord');
+      log(`Channel ${channelId} (${channelName}) does not support message fetching`, 'discord');
       return [];
     }
     
     // Cast to a channel type that has messages
     const textChannel = channel as TextChannel;
     
-    // We'll fetch messages from the last 7 days to ensure we have messages
-    // If 24 hours is too restrictive, especially for testing
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // We'll fetch messages from the last 30 days to ensure we have messages
+    // If 7 days is too restrictive, especially for testing
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    log(`Fetching messages since: ${sevenDaysAgo.toISOString()}`, 'discord');
+    log(`Fetching messages since: ${thirtyDaysAgo.toISOString()} for channel ${channelName}`, 'discord');
 
     // Fetch messages
     let allMessages: Message[] = [];
@@ -310,48 +316,71 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     let fetchedMessages: Collection<string, Message<boolean>>;
     
     try {
-      log(`Starting message fetch loop for channel ${channelId}`, 'discord');
-      do {
-        const options: { limit: number; before?: string } = { limit: 50 }; // Reduced to 50 to avoid rate limits
-        if (lastId) options.before = lastId;
-
-        fetchedMessages = await textChannel.messages.fetch(options);
-        log(`Fetched ${fetchedMessages.size} messages from channel ${channelId}`, 'discord');
-        
-        if (fetchedMessages.size === 0) {
-          log(`No messages found in channel ${channelId}`, 'discord');
-          break;
-        }
-        
-        // Get recent messages (less restrictive time window)
-        const recentMessages = fetchedMessages.filter(msg => msg.createdAt > sevenDaysAgo);
-        log(`Found ${recentMessages.size} messages from the last 7 days`, 'discord');
-        
-        allMessages = [...allMessages, ...Array.from(recentMessages.values())];
-        
-        // Update the last ID for pagination
-        const lastMessage = fetchedMessages.last();
-        lastId = lastMessage?.id;
-        
-        // If the oldest message in this batch is already older than our threshold, we can stop
-        if (lastMessage && lastMessage.createdAt <= sevenDaysAgo) {
-          log(`Reached messages older than 7 days, stopping fetch for channel ${channelId}`, 'discord');
-          break;
-        }
-        
-      } while (fetchedMessages.size === 50);
+      log(`Starting message fetch loop for channel ${channelName} (${channelId})`, 'discord');
       
-      log(`Completed message fetch loop for channel ${channelId}. Total messages: ${allMessages.length}`, 'discord');
-      
-      // Log a sample of messages for debugging (first message)
-      if (allMessages.length > 0) {
-        const sample = allMessages[0];
-        log(`Sample message from channel ${channelId}: ${sample.author.username} at ${sample.createdAt.toISOString()}: ${sample.content.substring(0, 50)}${sample.content.length > 50 ? '...' : ''}`, 'discord');
+      // First attempt - get without filtering
+      try {
+        const initialFetch = await textChannel.messages.fetch({ limit: 10 });
+        log(`Initial fetch returned ${initialFetch.size} messages from ${channelName}`, 'discord');
+        
+        if (initialFetch.size > 0) {
+          // Log all messages for debugging
+          initialFetch.forEach(msg => {
+            log(`Message in ${channelName}: From ${msg.author.username} at ${msg.createdAt.toISOString()}: ${msg.content.substring(0, 30)}${msg.content.length > 30 ? '...' : ''}`, 'discord');
+          });
+          
+          // Add these messages to our collection
+          allMessages = [...allMessages, ...Array.from(initialFetch.values())];
+        }
+      } catch (initErr: any) {
+        log(`Error in initial message fetch for ${channelName}: ${initErr.message}`, 'discord');
       }
+      
+      // Continue with pagination if needed
+      if (allMessages.length < 50) {
+        do {
+          const options: { limit: number; before?: string } = { limit: 30 }; // Reduced to 30 to avoid rate limits
+          if (lastId) options.before = lastId;
+  
+          try {
+            fetchedMessages = await textChannel.messages.fetch(options);
+            log(`Fetched ${fetchedMessages.size} additional messages from ${channelName}`, 'discord');
+            
+            if (fetchedMessages.size === 0) {
+              log(`No more messages found in channel ${channelName}`, 'discord');
+              break;
+            }
+            
+            // No time filtering - we want ALL messages for debugging
+            allMessages = [...allMessages, ...Array.from(fetchedMessages.values())];
+            
+            // Update the last ID for pagination
+            const lastMessage = fetchedMessages.last();
+            lastId = lastMessage?.id;
+            
+            // Just get a reasonable number of messages for testing
+            if (allMessages.length >= 50) {
+              log(`Reached 50 messages for ${channelName}, stopping fetch to avoid overload`, 'discord');
+              break;
+            }
+          } catch (fetchErr: any) {
+            log(`Error fetching batch from ${channelName}: ${fetchErr.message}`, 'discord');
+            break;
+          }
+          
+        } while (fetchedMessages && fetchedMessages.size === 30);
+      }
+      
+      log(`Completed message fetch loop for ${channelName}. Total messages: ${allMessages.length}`, 'discord');
+      
+      // Log all messages for this channel
+      allMessages.forEach((msg, index) => {
+        log(`Message ${index + 1} in ${channelName}: From ${msg.author.username} at ${msg.createdAt.toISOString()}: ${msg.content.substring(0, 50)}${msg.content.length > 50 ? '...' : ''}`, 'discord');
+      });
       
     } catch (err: any) {
       // If there's an error fetching messages (e.g., permission issues)
-      log(`Error in message fetching loop for channel ${channelId}: ${err.message}`, 'discord');
+      log(`Error in message fetching loop for channel ${channelName}: ${err.message}`, 'discord');
       // Return whatever messages we did manage to get
     }
 
