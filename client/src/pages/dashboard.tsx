@@ -276,21 +276,33 @@ const Dashboard = () => {
   
   // Create a ref at component level, outside of the useEffect
   const autoTriggerRef = React.useRef(false);
+  const initialLoadDoneRef = React.useRef(false);
   
   // Auto-trigger summary generation for test channels or when summaries are missing
+  // This should only happen once on initial load
   useEffect(() => {
     if (!selectedServerId || isLoadingChannels || refreshMutation.isPending) return;
     
-    // Check if we've already triggered a summary generation
+    // Only run this auto-trigger once on initial load
+    if (initialLoadDoneRef.current) return;
+    
+    // Check if we've already triggered a summary generation in this session
     if (autoTriggerRef.current) return;
+    
+    // Check if we have any summaries already
+    const hasSummaries = Object.keys(summariesMap).length > 0;
+    
+    // When we have summaries, mark the initial load as complete
+    if (hasSummaries) {
+      initialLoadDoneRef.current = true;
+      return;
+    }
     
     // Check for channels with the name 'chatbot-testing' or with our specific test channel ID
     const specificTestChannelId = '1332443868473463006';
     const hasChatbotTestingChannel = channels.some(
       channel => channel.name.toLowerCase() === 'chatbot-testing' || channel.id === specificTestChannelId
     );
-    
-    const hasSummaries = Object.keys(summariesMap).length > 0;
     
     // If we have a test channel or no summaries, and summaries have loaded (or failed to load)
     // then trigger a summary generation
@@ -300,12 +312,8 @@ const Dashboard = () => {
       // Add a slight delay to avoid immediate re-triggering
       const timeoutId = setTimeout(() => {
         autoTriggerRef.current = true;  // Set flag to prevent repeated triggering
+        initialLoadDoneRef.current = true; // Mark initial load as done
         refreshMutation.mutate();
-        
-        // Reset the flag after some time so we can auto-trigger again if needed
-        setTimeout(() => {
-          autoTriggerRef.current = false;
-        }, 30000);  // Wait 30 seconds before allowing another auto-trigger
       }, 1000);
       
       return () => clearTimeout(timeoutId);

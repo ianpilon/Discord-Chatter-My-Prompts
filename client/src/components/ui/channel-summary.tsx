@@ -29,23 +29,34 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
     setIsExpanded(!isExpanded);
   };
   
+  // Log to help debugging
+  console.log(`Rendering ChannelSummary for ${channel.name} (${channel.id}), summary:`, summary);
+  
+  // Identify test channels
+  const isTestChannel = channel.name.toLowerCase() === 'chatbot-testing' || channel.id === '1332443868473463006';
+  
   // Handle the case where summary doesn't exist yet
   const hasSummary = summary && typeof summary === 'object';
   const messageCount = hasSummary ? summary.messageCount : 0;
   
   return (
     <div className="bg-[#2f3136] rounded-lg overflow-hidden">
-      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+      <div className={`p-4 border-b border-gray-700 flex items-center justify-between ${isTestChannel ? 'bg-purple-900/20' : ''}`}>
         <div className="flex items-center">
           <Hash className="text-[#72767d] mr-2 h-4 w-4" />
           <h3 className="font-medium text-[#dcddde]">{channel.name}</h3>
+          {isTestChannel && (
+            <span className="ml-2 text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">
+              Test Channel
+            </span>
+          )}
           {hasSummary ? (
             <span className="ml-2 text-xs bg-[#7289da]/10 text-[#7289da] px-2 py-0.5 rounded-full">
               {messageCount} {messageCount === 1 ? 'message' : 'messages'}
             </span>
           ) : (
             <span className="ml-2 text-xs bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full">
-              Processing
+              {isTestChannel ? 'Ready for Testing' : 'Processing'}
             </span>
           )}
         </div>
@@ -77,13 +88,33 @@ const ChannelSummary = ({ channel, summary }: ChannelSummaryProps) => {
                 </div>
               )}
             </>
+          ) : isTestChannel ? (
+            <div className="py-2">
+              <p className="text-purple-300 mb-2 font-semibold">Test Channel for Discord Summarizer</p>
+              <p className="text-[#dcddde] mb-2">
+                This is a special channel for testing the Discord AI summarization system.
+              </p>
+              <div className="mt-4 p-3 border border-dashed border-purple-500 rounded bg-purple-900/10">
+                <p className="text-sm text-[#dcddde] mb-2">
+                  <strong className="text-purple-300">To test this system:</strong>
+                </p>
+                <ol className="list-decimal list-inside text-sm text-[#dcddde] space-y-1">
+                  <li>Send a few messages in the <span className="text-purple-300">{channel.name}</span> channel on Discord</li>
+                  <li>Wait a moment for the Discord API to register your messages</li>
+                  <li>Click the "Refresh" button at the top of this dashboard</li>
+                  <li>The AI will generate a summary of your conversation</li>
+                </ol>
+              </div>
+              <p className="text-xs text-[#72767d] mt-3">
+                Channel ID: {channel.id}
+              </p>
+            </div>
           ) : (
             <div className="py-2">
               <p className="text-[#dcddde] mb-2">Generating summary for this channel...</p>
               <p className="text-xs text-[#72767d]">
                 This channel is being monitored, but no summary has been generated yet.
-                {(channel.name.toLowerCase() === 'chatbot-testing' || channel.id === '1332443868473463006') && 
-                  " This is a test channel - you can send messages here to see how they're processed."}
+                This could be because there are no recent messages in the last hour.
               </p>
             </div>
           )}

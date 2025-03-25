@@ -39,27 +39,40 @@ const ServerSummary = ({
   isLoading
 }: ServerSummaryProps) => {
   const activeChannels = useMemo(() => {
+    // First check if channels is defined
+    if (!channels || channels.length === 0) {
+      return [];
+    }
+    
+    console.log(`Processing ${channels.length} channels for server ${server.name || server.id}`);
+    
     // Less strict filtering - show channels even if they don't have summaries yet
-    return channels.filter(channel => {
+    const filtered = channels.filter(channel => {
       // Special case: Always include chatbot-testing channel for visibility during testing
       if (channel.name.toLowerCase() === 'chatbot-testing') {
+        console.log(`Including test channel by name: ${channel.name}`);
         return true;
       }
       
       // Special case: Include our specific test channel by ID
       const specificTestChannelId = '1332443868473463006';
       if (channel.id === specificTestChannelId) {
+        console.log(`Including test channel by ID: ${channel.id}`);
         return true;
       }
       
       // If channel has a summary, include it (even if messageCount is 0)
-      if (Object.keys(summaries).includes(channel.id)) {
+      if (summaries && Object.keys(summaries).includes(channel.id)) {
+        console.log(`Including channel with summary: ${channel.name}`);
         return true;
       }
       
       return false;
     });
-  }, [channels, summaries]);
+    
+    console.log(`Filtered to ${filtered.length} active channels for display`);
+    return filtered;
+  }, [channels, summaries, server.id, server.name]);
   
   const totalMessages = useMemo(() => {
     return activeChannels.reduce((total, channel) => {
