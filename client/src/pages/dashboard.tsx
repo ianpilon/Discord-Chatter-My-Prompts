@@ -166,13 +166,13 @@ const Dashboard = () => {
       if (data.completed && data.stats) {
         toast({
           title: "Refreshed",
-          description: `Activity summaries refreshed. Found ${data.stats.totalMessages} messages from ${data.stats.activeUsers} users across ${data.stats.activeChannels} channels.`,
+          description: `Activity summaries refreshed. Found ${data.stats.totalMessages} messages from the last hour, from ${data.stats.activeUsers} users across ${data.stats.activeChannels} channels. Click the reload button to see latest data.`,
         });
       } else {
         // For background processing, show a different message
         toast({
           title: "Refreshed",
-          description: "Activity summaries are refreshing. Data will update shortly.",
+          description: "Activity summaries from the last hour are refreshing. When complete, click the reload button to see latest data.",
         });
       }
       
@@ -211,7 +211,7 @@ const Dashboard = () => {
       if (error.message?.includes('still running in the background')) {
         toast({
           title: "Processing in background",
-          description: "The summaries are being generated in the background. The data will be automatically updated in a few seconds.",
+          description: "The summaries for the last hour are being generated in the background. When complete, click the reload button to see latest data.",
         });
         
         // Still invalidate queries so the user can see updated data
