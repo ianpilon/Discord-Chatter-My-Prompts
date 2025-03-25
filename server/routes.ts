@@ -107,11 +107,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const channels = await storage.getChannels(serverId);
       log(`Server ${serverId} has ${channels.length} channels in storage`, 'express');
       
-      // Include channels in the response for easier client access
+      // Log channel types to help debug filtering issues
+      const channelTypes = new Set(channels.map(c => c.type));
+      log(`Channel types in server ${serverId}: ${Array.from(channelTypes).join(', ')}`, 'express');
+      
+      // Include channels in the response for easier client access - be more permissive with filtering
+      // The previous filter might have been too strict
+      const filteredChannels = channels.filter(channel => {
+        // Handle numeric types, string types, and both standard and legacy Discord type formats
+        const isTextChannel = 
+          channel.type === "0" || // New Discord API format
+          String(channel.type) === "0" || // Handle potential numeric values
+          channel.type === "GUILD_TEXT" || // Legacy format
+          String(channel.type).toLowerCase() === "text"; // Another common format
+          
+        return isTextChannel;
+      });
+      
+      log(`Filtered to ${filteredChannels.length} text channels for server ${serverId}`, 'express');
+      
       res.json({ 
         server, 
         stats,
-        channels: channels.filter(channel => channel.type === "0" || channel.type === "GUILD_TEXT") 
+        channels: filteredChannels 
       });
     } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch server details: ${error.message}` });
@@ -138,7 +156,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get channels from storage
       const channels = await storage.getChannels(serverId);
-      res.json(channels);
+      
+      // Apply the same filtering logic as in the server details endpoint
+      const filteredChannels = channels.filter(channel => {
+        // Handle numeric types, string types, and both standard and legacy Discord type formats
+        const isTextChannel = 
+          channel.type === "0" || // New Discord API format
+          String(channel.type) === "0" || // Handle potential numeric values
+          channel.type === "GUILD_TEXT" || // Legacy format
+          String(channel.type).toLowerCase() === "text"; // Another common format
+          
+        return isTextChannel;
+      });
+      
+      log(`Filtered to ${filteredChannels.length} text channels of ${channels.length} total channels`, 'express');
+      
+      res.json(filteredChannels);
     } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch channels: ${error.message}` });
     }

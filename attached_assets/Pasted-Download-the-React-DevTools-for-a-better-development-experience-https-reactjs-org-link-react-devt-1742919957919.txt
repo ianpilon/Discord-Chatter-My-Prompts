@@ -1,0 +1,46 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Loading...
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:94 Full server details response: 
+Object
+dashboard.tsx:104 No channels found, triggering channel sync...
+dashboard.tsx:357 Auto-triggering summary generation for test channel or missing summaries
+dashboard.tsx:108 Channel sync response: 200
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:230 Refresh mutation succeeded with data: 
+Object
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:240 Performing delayed refetch after background processing
+dashboard.tsx:121 Current channels for selected server: 
+Array(0)
+server-summary.tsx:53 No channels found for server Agent to Agent Payment$ Hackathon
+dashboard.tsx:94 Full server details response: 
+Object
+channels
+: 
+[]
+server
+: 
+{id: '1323640508215595102', name: 'Agent to Agent Payment$ Hackathon', icon: 'https://cdn.discordapp.com/icons/1323640508215595102/5b2116349030a49b137c3dcd363f1972.png', isActive: true, lastSynced: '2025-03-25T16:25:24.802Z'}
+stats
+: 
+{id: 6, serverId: '1323640508215595102', totalMessages: 6, activeUsers: 1, activeChannels: 2, …}
+[[Prototype]]
+: 
+Object
