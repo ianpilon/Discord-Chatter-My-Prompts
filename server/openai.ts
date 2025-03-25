@@ -11,7 +11,7 @@ export async function checkOpenAIStatus(): Promise<boolean> {
   try {
     await openai.models.list();
     return true;
-  } catch (error) {
+  } catch (error: any) {
     log(`OpenAI API error: ${error.message}`, 'openai');
     return false;
   }
