@@ -116,36 +116,68 @@ function calculatePercentChange(current: number, previous: number): number {
 // Function to manually trigger summary generation for a specific server
 export async function generateServerSummary(serverId: string) {
   try {
+    log(`Starting summary generation for server ${serverId}`, 'scheduler');
+    
     // Get the server
     const server = await storage.getServer(serverId);
     if (!server || !server.isActive) {
       throw new Error(`Server ${serverId} not found or inactive`);
     }
     
+    log(`Processing server: ${server.name} (${serverId})`, 'scheduler');
+    
     // Get all channels for this server
     const channels = await storage.getChannels(serverId);
+    log(`Found ${channels.length} channels for server ${serverId}`, 'scheduler');
+    
     let totalMessages = 0;
     let activeChannelsCount = 0;
     const activeUsersSet = new Set<string>();
     
+    // Log the list of channels we'll be processing
+    channels.forEach(channel => {
+      log(`Server has channel: ${channel.name} (${channel.id}) - Type: ${channel.type}`, 'scheduler');
+    });
+    
+    // First, let's check which channel the user is most likely to have sent test messages in
+    log(`Checking for the most recent messages across all channels`, 'scheduler');
+    
     for (const channel of channels) {
-      if (!channel.isActive) continue;
+      if (!channel.isActive) {
+        log(`Skipping inactive channel ${channel.name}`, 'scheduler');
+        continue;
+      }
       
-      // Get messages from the last 24 hours
+      log(`Processing channel ${channel.name} (${channel.id})`, 'scheduler');
+      
+      // Get messages from the last 7 days (we expanded this timeframe in discord.ts)
       const messages = await getRecentMessages(channel.id);
-      if (messages.length === 0) continue;
+      log(`Retrieved ${messages.length} messages from channel ${channel.name}`, 'scheduler');
+      
+      if (messages.length === 0) {
+        log(`No messages found in channel ${channel.name}, skipping...`, 'scheduler');
+        continue;
+      }
       
       // Count this as an active channel
       activeChannelsCount++;
+      log(`Channel ${channel.name} is active with ${messages.length} messages`, 'scheduler');
       
       // Track total messages
       totalMessages += messages.length;
       
       // Track unique users
-      messages.forEach(msg => activeUsersSet.add(msg.author.id));
+      const usersInThisChannel = new Set<string>();
+      messages.forEach(msg => {
+        activeUsersSet.add(msg.author.id);
+        usersInThisChannel.add(msg.author.id);
+      });
+      log(`Channel ${channel.name} has ${usersInThisChannel.size} active users`, 'scheduler');
       
       // Generate summary using OpenAI
+      log(`Generating summary for channel ${channel.name}`, 'scheduler');
       const { summary, keyTopics } = await generateChannelSummary(messages, channel.name);
+      log(`Summary generated for channel ${channel.name}: ${summary.substring(0, 50)}...`, 'scheduler');
       
       // Calculate active users for this channel
       const channelActiveUsers = getActiveUsers(messages);
@@ -161,7 +193,10 @@ export async function generateServerSummary(serverId: string) {
       };
       
       await storage.createChannelSummary(channelSummary);
+      log(`Saved summary for channel ${channel.name}`, 'scheduler');
     }
+    
+    log(`Summary generation complete for all channels. Total stats: ${totalMessages} messages, ${activeUsersSet.size} users, ${activeChannelsCount} active channels`, 'scheduler');
     
     // Get previous server stats for comparison
     const previousStats = await storage.getLatestServerStats(serverId);
@@ -184,6 +219,7 @@ export async function generateServerSummary(serverId: string) {
     };
     
     await storage.createServerStats(serverStats);
+    log(`Saved server stats for server ${server.name}`, 'scheduler');
     
     // Update the server's lastSynced timestamp
     await storage.updateServer(serverId, { lastSynced: new Date() });
