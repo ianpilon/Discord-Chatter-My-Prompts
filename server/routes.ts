@@ -15,6 +15,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   scheduleDiscordSummaryJob();
   
   // API Routes
+  // Refresh Discord connection
+  app.post("/api/discord/refresh", async (_req: Request, res: Response) => {
+    try {
+      await initializeDiscordClient();
+      const discordStatus = getDiscordStatus();
+      
+      res.json({
+        discord: discordStatus ? "connected" : "disconnected",
+        message: "Discord connection refreshed",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to refresh Discord connection: ${error.message}` });
+    }
+  });
+  
   // Get system status
   app.get("/api/status", async (_req: Request, res: Response) => {
     const discordStatus = getDiscordStatus();
