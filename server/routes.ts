@@ -36,7 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Try to sync the latest servers from Discord
         try {
           await syncServers();
-        } catch (syncError) {
+        } catch (syncError: any) {
           console.error(`Warning: Could not sync servers from Discord: ${syncError.message}`);
           // Continue with stored servers if sync fails
         }
@@ -45,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get servers from storage (which now should include any newly synced servers)
       const servers = await storage.getServers();
       res.json(servers);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch servers: ${error.message}` });
     }
   });
@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const servers = await syncServers();
       res.json({ message: `Successfully synced ${servers.length} servers`, servers });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to sync servers: ${error.message}` });
     }
   });
@@ -70,10 +70,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Server not found" });
       }
       
+      // Check if this is a real Discord server ID (not a sample server)
+      const isDiscordConnected = getDiscordStatus();
+      const isRealServer = serverId.length > 10; // Real Discord IDs are longer than sample IDs
+      
+      if (isDiscordConnected && isRealServer) {
+        // Try to sync channels for this server to ensure we have the latest data
+        try {
+          await syncChannels(serverId);
+        } catch (syncError: any) {
+          console.error(`Warning: Could not sync channels for server ${serverId}: ${syncError.message}`);
+          // Continue with stored data if sync fails
+        }
+      }
+      
       const stats = await storage.getLatestServerStats(serverId);
       
       res.json({ server, stats });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch server details: ${error.message}` });
     }
   });
@@ -90,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Try to sync the latest channels from Discord
         try {
           await syncChannels(serverId);
-        } catch (syncError) {
+        } catch (syncError: any) {
           console.error(`Warning: Could not sync channels from Discord: ${syncError.message}`);
           // Continue with stored channels if sync fails
         }
@@ -99,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get channels from storage
       const channels = await storage.getChannels(serverId);
       res.json(channels);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch channels: ${error.message}` });
     }
   });
@@ -111,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const channels = await syncChannels(serverId);
       
       res.json({ message: `Successfully synced ${channels.length} channels`, channels });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to sync channels: ${error.message}` });
     }
   });
@@ -127,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(summary);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch channel summary: ${error.message}` });
     }
   });
@@ -150,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Summary generation completed",
         stats
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to generate summary: ${error.message}` });
     }
   });
@@ -182,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(settings);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to fetch settings: ${error.message}` });
     }
   });
@@ -212,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({ message: "Settings updated successfully", settings });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: `Failed to update settings: ${error.message}` });
     }
   });

@@ -56,9 +56,15 @@ const Sidebar = ({ onServerSelect }: { onServerSelect: (serverId: string) => voi
           onClick={() => onServerSelect(server.id)}
         >
           <div className="relative">
-            <div className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-white`}>
-              <span className="text-xs font-bold">{initials}</span>
-            </div>
+            {server.icon ? (
+              <div className="w-8 h-8 rounded-full overflow-hidden">
+                <img src={server.icon} alt={server.name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-white`}>
+                <span className="text-xs font-bold">{initials}</span>
+              </div>
+            )}
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#43b581] rounded-full border-2 border-[#202225]"></div>
           </div>
           <span className="ml-2 hidden lg:block">{server.name}</span>
