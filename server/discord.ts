@@ -12,8 +12,7 @@ import {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    // Only using non-privileged intents for now
   ],
 });
 
@@ -58,9 +57,20 @@ export async function initializeDiscordClient(): Promise<void> {
     isConnected = false;
     log(`Failed to initialize Discord client: ${error?.message || 'Unknown error'}`, 'discord');
     
-    // Provide more helpful error message
+    // Provide more helpful error messages
     if (error?.message?.includes('invalid token')) {
       log('Please check that your Discord bot token is correct. It should be in the format "XXXXXXXXXXXXXXXXXXXXXXXX.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX"', 'discord');
+    } else if (error?.message?.includes('disallowed intents')) {
+      log('Your bot needs additional permissions. To get full functionality:', 'discord');
+      log('1. Go to https://discord.com/developers/applications', 'discord');
+      log('2. Select your application', 'discord');
+      log('3. Go to "Bot" tab', 'discord');
+      log('4. Under "Privileged Gateway Intents", enable:', 'discord');
+      log('   - MESSAGE CONTENT INTENT', 'discord');
+      log('   - SERVER MEMBERS INTENT', 'discord');
+      log('   - PRESENCE INTENT', 'discord');
+      log('5. Save changes and restart the application', 'discord');
+      log('Until then, the application will run in limited mode with sample data.', 'discord');
     }
   }
 }
