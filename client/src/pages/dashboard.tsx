@@ -115,6 +115,8 @@ const Dashboard = () => {
   } = useQuery<{ server: Server, stats: ServerStats }>({
     queryKey: ['/api/servers', selectedServerId, 'details'],
     enabled: !!selectedServerId,
+    staleTime: 30000, // 30 seconds
+    retry: 2, // Retry twice if it fails
   });
   
   // All data loading status
