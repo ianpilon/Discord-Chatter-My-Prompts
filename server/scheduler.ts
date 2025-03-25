@@ -168,20 +168,40 @@ export async function generateServerSummary(serverId: string) {
         continue;
       }
       
-      log(`Processing channel ${channel.name} (${channel.id})`, 'scheduler');
+      // Identify test channels for special handling
+      const specificTestChannelId = '1332443868473463006';
+      const isTestChannel = channel.id === specificTestChannelId || channel.name.toLowerCase() === 'chatbot-testing';
+      
+      if (isTestChannel) {
+        log(`Processing test channel ${channel.name} (${channel.id}) with special handling`, 'scheduler');
+      } else {
+        log(`Processing regular channel ${channel.name} (${channel.id})`, 'scheduler');
+      }
       
       // Get messages from the last hour
       const messages = await getRecentMessages(channel.id);
       log(`Retrieved ${messages.length} messages from channel ${channel.name}`, 'scheduler');
       
-      if (messages.length === 0) {
+      // Determine if this channel should be processed
+      let shouldProcess = false;
+      
+      if (messages.length > 0) {
+        // Process normal channels with messages
+        shouldProcess = true;
+        // Count as an active channel 
+        activeChannelsCount++;
+        log(`Channel ${channel.name} is active with ${messages.length} messages`, 'scheduler');
+      } else if (isTestChannel) {
+        // For test channels, process even if there are no recent messages
+        shouldProcess = true;
+        // Count test channels as active for visibility
+        activeChannelsCount++;
+        log(`No recent messages in test channel ${channel.name}, but processing anyway`, 'scheduler');
+      } else {
+        // Skip inactive channels
         log(`No messages found in channel ${channel.name}, skipping...`, 'scheduler');
         continue;
       }
-      
-      // Count this as an active channel
-      activeChannelsCount++;
-      log(`Channel ${channel.name} is active with ${messages.length} messages`, 'scheduler');
       
       // Track total messages
       totalMessages += messages.length;
@@ -196,6 +216,8 @@ export async function generateServerSummary(serverId: string) {
       
       // Generate summary using OpenAI
       log(`Generating summary for channel ${channel.name}`, 'scheduler');
+      
+      // Always pass the channel name for test channels to ensure proper handling
       const { summary, keyTopics } = await generateChannelSummary(messages, channel.name);
       log(`Summary generated for channel ${channel.name}: ${summary.substring(0, 50)}...`, 'scheduler');
       

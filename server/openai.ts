@@ -29,13 +29,32 @@ export async function generateChannelSummary(messages: Message[], channelName: s
   summary: string;
   keyTopics: string[];
 }> {
+  // Check if this is a test channel
+  const isChatbotTestingChannel = channelName.toLowerCase() === 'chatbot-testing';
+  
+  // Special handling by channel ID
+  const specificTestChannelId = '1332443868473463006';
+  const isSpecificTestChannel = messages.length > 0 && 
+    messages[0].channel.id === specificTestChannelId;
+    
+  const isTestChannel = isChatbotTestingChannel || isSpecificTestChannel;
+  
   // Log detailed information about the messages
-  log(`Generating summary for ${channelName} with ${messages.length} messages`, 'openai');
+  log(`Generating summary for ${channelName} (${isTestChannel ? 'test channel' : 'regular channel'}) with ${messages.length} messages`, 'openai');
   
   if (messages.length === 0) {
     log(`No messages to summarize for ${channelName}`, 'openai');
+    
+    // For test channels, provide a special placeholder summary
+    if (isTestChannel) {
+      return {
+        summary: `This is a test channel for the Discord summarization system. No recent messages were found, but you can send messages here to see how they're processed and summarized by the AI.`,
+        keyTopics: ['Testing', 'Discord Bot', 'AI Summarization', 'Channel Activity']
+      };
+    }
+    
     return {
-      summary: `No messages in the ${channelName} channel in the last 24 hours.`,
+      summary: `No messages in the ${channelName} channel in the last hour.`,
       keyTopics: []
     };
   }
