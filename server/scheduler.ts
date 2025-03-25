@@ -196,11 +196,29 @@ export async function generateServerSummary(serverId: string) {
         shouldProcess = true;
         // Count test channels as active for visibility
         activeChannelsCount++;
-        log(`No recent messages in test channel ${channel.name}, but processing anyway`, 'scheduler');
+        
+        // Force set a non-zero active channel count if this is the only active channel
+        if (activeChannelsCount === 0) {
+          activeChannelsCount = 1;
+        }
+        
+        log(`No recent messages in test channel ${channel.name}, but processing anyway as a test channel`, 'scheduler');
       } else {
         // Skip inactive channels
         log(`No messages found in channel ${channel.name}, skipping...`, 'scheduler');
         continue;
+      }
+      
+      // Special handling for test channels to ensure they always appear in the UI
+      if (isTestChannel) {
+        log(`Applying special test channel handling for ${channel.name} (${channel.id})`, 'scheduler');
+        
+        // If no messages are present, we'll set at least one message in the count so it shows in UI
+        if (messages.length === 0) {
+          // This doesn't add actual messages, just updates the counter for visibility
+          totalMessages += 1;
+          log(`Added placeholder message count for test channel visibility`, 'scheduler');
+        }
       }
       
       // Track total messages

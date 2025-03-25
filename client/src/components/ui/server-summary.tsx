@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { Server, Check } from "lucide-react";
 import ChannelSummary from "./channel-summary";
 
@@ -38,26 +38,33 @@ const ServerSummary = ({
   onViewDetails,
   isLoading
 }: ServerSummaryProps) => {
+  // Function to check if a channel is a test channel
+  const isTestChannel = useCallback((channel: Channel) => {
+    return channel.name.toLowerCase() === 'chatbot-testing' || 
+           channel.id === '1332443868473463006' ||
+           channel.name.includes('test');
+  }, []);
+
   const activeChannels = useMemo(() => {
     // First check if channels is defined
     if (!channels || channels.length === 0) {
+      console.log(`No channels found for server ${server.name || server.id}`);
       return [];
     }
     
     console.log(`Processing ${channels.length} channels for server ${server.name || server.id}`);
     
+    // Find any test channels first
+    const testChannels = channels.filter(channel => isTestChannel(channel));
+    if (testChannels.length > 0) {
+      console.log(`Found ${testChannels.length} test channels`);
+    }
+    
     // Less strict filtering - show channels even if they don't have summaries yet
     const filtered = channels.filter(channel => {
-      // Special case: Always include chatbot-testing channel for visibility during testing
-      if (channel.name.toLowerCase() === 'chatbot-testing') {
-        console.log(`Including test channel by name: ${channel.name}`);
-        return true;
-      }
-      
-      // Special case: Include our specific test channel by ID
-      const specificTestChannelId = '1332443868473463006';
-      if (channel.id === specificTestChannelId) {
-        console.log(`Including test channel by ID: ${channel.id}`);
+      // Special case: Always include test channels for visibility during testing
+      if (isTestChannel(channel)) {
+        console.log(`Including test channel: ${channel.name} (${channel.id})`);
         return true;
       }
       
@@ -70,9 +77,19 @@ const ServerSummary = ({
       return false;
     });
     
+    // Sort channels to put test channels first
+    filtered.sort((a, b) => {
+      const aIsTest = isTestChannel(a);
+      const bIsTest = isTestChannel(b);
+      
+      if (aIsTest && !bIsTest) return -1;
+      if (!aIsTest && bIsTest) return 1;
+      return 0;
+    });
+    
     console.log(`Filtered to ${filtered.length} active channels for display`);
     return filtered;
-  }, [channels, summaries, server.id, server.name]);
+  }, [channels, summaries, server.id, server.name, isTestChannel]);
   
   const totalMessages = useMemo(() => {
     return activeChannels.reduce((total, channel) => {

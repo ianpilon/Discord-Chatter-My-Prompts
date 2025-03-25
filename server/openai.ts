@@ -29,15 +29,24 @@ export async function generateChannelSummary(messages: Message[], channelName: s
   summary: string;
   keyTopics: string[];
 }> {
-  // Check if this is a test channel
+  // Check if this is a test channel by name
   const isChatbotTestingChannel = channelName.toLowerCase() === 'chatbot-testing';
   
   // Special handling by channel ID
   const specificTestChannelId = '1332443868473463006';
-  const isSpecificTestChannel = messages.length > 0 && 
-    messages[0].channel.id === specificTestChannelId;
+  
+  // Check channel ID from messages if available, otherwise don't require messages for test channel ID
+  const isSpecificTestChannel = messages.length > 0 
+    ? messages[0].channel.id === specificTestChannelId 
+    : false;
+  
+  // Consider channelId passed in message content
+  const channelIdInName = channelName.includes(specificTestChannelId);
     
-  const isTestChannel = isChatbotTestingChannel || isSpecificTestChannel;
+  // Channel is a test channel if any of the test conditions match
+  const isTestChannel = isChatbotTestingChannel || isSpecificTestChannel || channelIdInName;
+  
+  log(`Test channel detection: isChatbotTestingChannel=${isChatbotTestingChannel}, isSpecificTestChannel=${isSpecificTestChannel}, channelIdInName=${channelIdInName}, final=${isTestChannel}`, 'openai');
   
   // Log detailed information about the messages
   log(`Generating summary for ${channelName} (${isTestChannel ? 'test channel' : 'regular channel'}) with ${messages.length} messages`, 'openai');
