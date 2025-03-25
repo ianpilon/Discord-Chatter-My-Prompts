@@ -91,7 +91,16 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
               )}
               
               {/* Add the MessageList component for channels with summaries */}
-              <MessageList channelId={channel.id} limit={20} />
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-[#7289da] mb-2 flex items-center">
+                  <MessageCircle className="mr-1 h-4 w-4" /> Original Messages
+                </h4>
+                {messages && messages.length > 0 ? (
+                  <MessageList channelId={channel.id} limit={20} messageData={messages} />
+                ) : (
+                  <MessageList channelId={channel.id} limit={20} />
+                )}
+              </div>
             </>
           ) : isTestChannel ? (
             <div className="py-2">
@@ -115,7 +124,16 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
               </p>
               
               {/* Add the MessageList component for test channels */}
-              <MessageList channelId={channel.id} limit={10} isTestChannel={true} />
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-purple-300 mb-2 flex items-center">
+                  <MessageCircle className="mr-1 h-4 w-4" /> Discord Messages
+                </h4>
+                {messages && messages.length > 0 ? (
+                  <MessageList channelId={channel.id} limit={10} isTestChannel={true} messageData={messages} />
+                ) : (
+                  <MessageList channelId={channel.id} limit={10} isTestChannel={true} />
+                )}
+              </div>
             </div>
           ) : (
             <div className="py-2">
@@ -126,7 +144,16 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
               </p>
               
               {/* Add the MessageList component for channels without summaries */}
-              <MessageList channelId={channel.id} limit={5} />
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-400 mb-2 flex items-center">
+                  <MessageCircle className="mr-1 h-4 w-4" /> Recent Messages
+                </h4>
+                {messages && messages.length > 0 ? (
+                  <MessageList channelId={channel.id} limit={5} messageData={messages} />
+                ) : (
+                  <MessageList channelId={channel.id} limit={5} />
+                )}
+              </div>
             </div>
           )}
         </div>

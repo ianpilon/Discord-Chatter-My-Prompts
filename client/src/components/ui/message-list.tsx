@@ -18,9 +18,10 @@ interface MessageListProps {
   channelId: string;
   limit?: number;
   isTestChannel?: boolean;
+  messageData?: DiscordMessage[];
 }
 
-const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageListProps) => {
+const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData }: MessageListProps) => {
   const [expanded, setExpanded] = useState(false);
   
   const {
@@ -35,13 +36,25 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageLi
       console.log("Messages response for channel", channelId, ":", response);
       return response;
     },
-    enabled: !!channelId,
+    // Skip API call if messageData is provided
+    enabled: !!channelId && !messageData,
     retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const messages = messagesData?.messages || [];
+  // Use provided messageData if available, otherwise use data from the API
+  const messages = messageData || messagesData?.messages || [];
   const hasMessages = Array.isArray(messages) && messages.length > 0;
+  
+  // If messageData is provided, we're never in a loading state
+  const actualIsLoading = messageData ? false : isLoading;
+  
+  // Skip API call if messageData is provided
+  useEffect(() => {
+    if (messageData && messageData.length > 0) {
+      console.log("Using provided messageData for channel", channelId, ":", messageData);
+    }
+  }, [messageData, channelId]);
   
   return (
     <div className="mt-4 border-t border-gray-700 pt-4">
@@ -55,13 +68,15 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageLi
           )}
         </h4>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => refetch()}
-            className="text-xs text-[#72767d] hover:text-[#dcddde] flex items-center"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Refresh
-          </button>
+          {!messageData && (
+            <button
+              onClick={() => refetch()}
+              className="text-xs text-[#72767d] hover:text-[#dcddde] flex items-center"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Refresh
+            </button>
+          )}
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-xs text-[#72767d] hover:text-[#dcddde]"
@@ -71,11 +86,11 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false }: MessageLi
         </div>
       </div>
       
-      {isLoading ? (
+      {actualIsLoading ? (
         <div className="flex items-center justify-center py-10 bg-[#36393f] rounded-md">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#7289da]"></div>
         </div>
-      ) : isError ? (
+      ) : isError && !messageData ? (
         <div className="text-red-400 py-3 px-4 bg-red-900/20 rounded-md flex items-center">
           <AlertCircle className="h-4 w-4 mr-2" />
           Failed to load messages
