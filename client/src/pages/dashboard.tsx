@@ -135,8 +135,28 @@ const Dashboard = () => {
   const refreshMutation = useMutation({
     mutationFn: async () => {
       if (!selectedServerId) throw new Error("No server selected");
-      const response = await apiRequest('POST', `/api/servers/${selectedServerId}/generate-summary`, {});
-      return response.json();
+      
+      // Add a timeout to the request - 2 minutes (120000ms)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      
+      try {
+        const response = await apiRequest(
+          'POST', 
+          `/api/servers/${selectedServerId}/generate-summary`, 
+          {}, 
+          { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+        return response.json();
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        // Handle abort error specifically
+        if (error.name === 'AbortError') {
+          throw new Error('The request took too long. The process is still running in the background.');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -148,12 +168,24 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
       queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to refresh summaries: ${error.message}`,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // For timeout errors, give a more helpful message but still invalidate queries
+      if (error.message?.includes('still running in the background')) {
+        toast({
+          title: "Processing in background",
+          description: "The summaries are being generated in the background. Try refreshing the page in a minute.",
+        });
+        
+        // Still invalidate queries so the user can see updated data if they refresh
+        queryClient.invalidateQueries({ queryKey: ['/api/summaries', selectedServerId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/servers', selectedServerId, 'details'] });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to refresh summaries: ${error.message}`,
+          variant: "destructive",
+        });
+      }
     }
   });
   

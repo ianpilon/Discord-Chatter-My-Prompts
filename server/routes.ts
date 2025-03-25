@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { initializeDiscordClient, syncServers, syncChannels, getDiscordStatus } from "./discord";
 import { checkOpenAIStatus } from "./openai";
 import { scheduleDiscordSummaryJob, generateServerSummary } from "./scheduler";
+import { log } from "./vite";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -148,22 +149,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Manually trigger summary generation for a server
   app.post("/api/servers/:serverId/generate-summary", async (req: Request, res: Response) => {
+    const serverId = req.params.serverId;
+    
     try {
-      const serverId = req.params.serverId;
-      
       // Check if server exists
       const server = await storage.getServer(serverId);
       if (!server) {
         return res.status(404).json({ message: "Server not found" });
       }
       
-      // Generate summaries
-      const stats = await generateServerSummary(serverId);
+      // Set a timeout for responding to the client
+      // This will make the API respond faster while processing continues in the background
+      const responseTimeout = 10000; // 10 seconds
       
-      res.json({
-        message: "Summary generation completed",
-        stats
+      // Create a promise that resolves after the timeout
+      const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, responseTimeout);
       });
+      
+      // Start the summary generation process
+      const summaryPromise = generateServerSummary(serverId).catch(error => {
+        log(`Error in background summary generation: ${error.message}`, 'express');
+        return null;
+      });
+      
+      // Define response types for type safety
+      type CompletedResponse = {
+        completed: true;
+        stats: ReturnType<typeof generateServerSummary> | null;
+      };
+      
+      type PendingResponse = {
+        completed: false;
+        message: string;
+      };
+      
+      type ResponseResult = CompletedResponse | PendingResponse;
+      
+      // Race between the timeout and the summary completion
+      const result = await Promise.race<ResponseResult>([
+        // If summary finishes before timeout, use that result
+        summaryPromise.then(stats => ({ 
+          completed: true, 
+          stats 
+        }) as CompletedResponse),
+        
+        // If timeout happens first, return early response but keep processing
+        timeoutPromise.then(() => ({ 
+          completed: false,
+          message: "Summary generation started. This may take a minute to complete." 
+        }) as PendingResponse)
+      ]);
+      
+      if (result.completed) {
+        // Summary finished before timeout
+        res.json({
+          message: "Summary generation completed",
+          stats: result.stats
+        });
+      } else {
+        // Timeout happened, but we'll continue processing in the background
+        res.json(result);
+        
+        // Ensure the summary generation continues in the background
+        summaryPromise.then(stats => {
+          if (stats) {
+            console.log(`Background summary generation completed for server ${serverId}`);
+          }
+        });
+      }
     } catch (error: any) {
       res.status(500).json({ message: `Failed to generate summary: ${error.message}` });
     }

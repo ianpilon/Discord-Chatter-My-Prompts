@@ -11,16 +11,40 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  options?: {
+    signal?: AbortSignal;
+    timeout?: number;
+  }
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const fetchOptions: RequestInit = {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
-  });
-
-  await throwIfResNotOk(res);
-  return res;
+  };
+  
+  // Add abort signal if provided
+  if (options?.signal) {
+    fetchOptions.signal = options.signal;
+  }
+  
+  // Create a timeout if specified
+  let timeoutId: NodeJS.Timeout | undefined;
+  if (options?.timeout && !options.signal) {
+    const controller = new AbortController();
+    fetchOptions.signal = controller.signal;
+    timeoutId = setTimeout(() => controller.abort(), options.timeout);
+  }
+  
+  try {
+    const res = await fetch(url, fetchOptions);
+    await throwIfResNotOk(res);
+    return res;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
