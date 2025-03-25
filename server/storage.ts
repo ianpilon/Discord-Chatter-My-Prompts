@@ -193,7 +193,14 @@ export class MemStorage implements IStorage {
   }
 
   async createServer(server: InsertDiscordServer): Promise<DiscordServer> {
-    const newServer = { ...server };
+    // Ensure all required fields have values to satisfy the type requirements
+    const newServer: DiscordServer = {
+      id: server.id,
+      name: server.name,
+      icon: server.icon !== undefined ? server.icon : null,
+      isActive: server.isActive !== undefined ? server.isActive : true,
+      lastSynced: server.lastSynced !== undefined ? server.lastSynced : new Date()
+    };
     this.discordServers.set(server.id, newServer);
     return newServer;
   }
@@ -219,7 +226,14 @@ export class MemStorage implements IStorage {
   }
 
   async createChannel(channel: InsertDiscordChannel): Promise<DiscordChannel> {
-    const newChannel = { ...channel };
+    // Ensure all required fields have values
+    const newChannel: DiscordChannel = {
+      id: channel.id,
+      serverId: channel.serverId,
+      name: channel.name,
+      type: channel.type,
+      isActive: channel.isActive !== undefined ? channel.isActive : true
+    };
     this.discordChannels.set(channel.id, newChannel);
     return newChannel;
   }
@@ -239,7 +253,16 @@ export class MemStorage implements IStorage {
 
   async createChannelSummary(summary: InsertChannelSummary): Promise<ChannelSummary> {
     const id = this.channelSummaryCurrentId++;
-    const newSummary: ChannelSummary = { ...summary, id };
+    // Ensure all required fields have values
+    const newSummary: ChannelSummary = {
+      id,
+      channelId: summary.channelId,
+      summary: summary.summary,
+      messageCount: summary.messageCount,
+      activeUsers: summary.activeUsers !== undefined ? summary.activeUsers : 0,
+      keyTopics: summary.keyTopics !== undefined ? summary.keyTopics : [],
+      generatedAt: summary.generatedAt !== undefined ? summary.generatedAt : new Date()
+    };
     this.channelSummaries.set(id, newSummary);
     return newSummary;
   }
@@ -253,7 +276,16 @@ export class MemStorage implements IStorage {
 
   async createServerStats(stats: InsertServerStats): Promise<ServerStats> {
     const id = this.serverStatsCurrentId++;
-    const newStats: ServerStats = { ...stats, id };
+    // Ensure all required fields have values
+    const newStats: ServerStats = {
+      id,
+      serverId: stats.serverId,
+      totalMessages: stats.totalMessages,
+      activeUsers: stats.activeUsers,
+      activeChannels: stats.activeChannels,
+      percentChange: stats.percentChange,
+      generatedAt: stats.generatedAt !== undefined ? stats.generatedAt : new Date()
+    };
     this.serverStats.set(id, newStats);
     return newStats;
   }
@@ -267,7 +299,15 @@ export class MemStorage implements IStorage {
 
   async createUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
     const id = this.userSettingsCurrentId++;
-    const newSettings: UserSettings = { ...settings, id };
+    // Ensure all required fields have values
+    const newSettings: UserSettings = {
+      id,
+      userId: settings.userId,
+      summaryFrequency: settings.summaryFrequency !== undefined ? settings.summaryFrequency : "24h",
+      detailLevel: settings.detailLevel !== undefined ? settings.detailLevel : "standard",
+      emailNotifications: settings.emailNotifications !== undefined ? settings.emailNotifications : false,
+      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true
+    };
     this.userSettings.set(id, newSettings);
     return newSettings;
   }

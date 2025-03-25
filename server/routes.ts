@@ -29,6 +29,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all servers
   app.get("/api/servers", async (_req: Request, res: Response) => {
     try {
+      // Check if Discord is connected
+      const isDiscordConnected = getDiscordStatus();
+      
+      if (isDiscordConnected) {
+        // Try to sync the latest servers from Discord
+        try {
+          await syncServers();
+        } catch (syncError) {
+          console.error(`Warning: Could not sync servers from Discord: ${syncError.message}`);
+          // Continue with stored servers if sync fails
+        }
+      }
+      
+      // Get servers from storage (which now should include any newly synced servers)
       const servers = await storage.getServers();
       res.json(servers);
     } catch (error) {
@@ -68,8 +82,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/servers/:serverId/channels", async (req: Request, res: Response) => {
     try {
       const serverId = req.params.serverId;
-      const channels = await storage.getChannels(serverId);
       
+      // Check if Discord is connected
+      const isDiscordConnected = getDiscordStatus();
+      
+      if (isDiscordConnected) {
+        // Try to sync the latest channels from Discord
+        try {
+          await syncChannels(serverId);
+        } catch (syncError) {
+          console.error(`Warning: Could not sync channels from Discord: ${syncError.message}`);
+          // Continue with stored channels if sync fails
+        }
+      }
+      
+      // Get channels from storage
+      const channels = await storage.getChannels(serverId);
       res.json(channels);
     } catch (error) {
       res.status(500).json({ message: `Failed to fetch channels: ${error.message}` });
