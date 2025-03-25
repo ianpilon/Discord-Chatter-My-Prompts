@@ -185,7 +185,15 @@ export class MemStorage implements IStorage {
 
   // Discord server methods
   async getServers(): Promise<DiscordServer[]> {
-    return Array.from(this.discordServers.values());
+    const servers = Array.from(this.discordServers.values());
+    
+    // Separate real Discord servers (with long IDs) from sample servers
+    const realServers = servers.filter(server => server.id.length > 10);
+    const sampleServers = servers.filter(server => server.id.length <= 10);
+    
+    // If we have real Discord servers, only return those
+    // Otherwise, fall back to sample servers
+    return realServers.length > 0 ? realServers : sampleServers;
   }
 
   async getServer(id: string): Promise<DiscordServer | undefined> {
@@ -216,9 +224,19 @@ export class MemStorage implements IStorage {
 
   // Discord channel methods
   async getChannels(serverId: string): Promise<DiscordChannel[]> {
-    return Array.from(this.discordChannels.values()).filter(
+    // Get all channels for this server
+    const channels = Array.from(this.discordChannels.values()).filter(
       channel => channel.serverId === serverId
     );
+    
+    // If this is a real Discord server ID (longer than 10 chars), we only want real Discord channels
+    if (serverId.length > 10) {
+      // Real Discord channel IDs are also long
+      return channels.filter(channel => channel.id.length > 10);
+    }
+    
+    // For sample servers, return all channels
+    return channels;
   }
 
   async getChannel(id: string): Promise<DiscordChannel | undefined> {
@@ -269,9 +287,33 @@ export class MemStorage implements IStorage {
 
   // Server stats methods
   async getLatestServerStats(serverId: string): Promise<ServerStats | undefined> {
-    return Array.from(this.serverStats.values())
+    const stats = Array.from(this.serverStats.values())
       .filter(stats => stats.serverId === serverId)
       .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime())[0];
+    
+    // If no stats exist and this is a real Discord server, create default stats
+    if (!stats && serverId.length > 10) {
+      // Create default stats for this real Discord server
+      const serverChannels = await this.getChannels(serverId);
+      const activeChannels = serverChannels.length;
+      
+      const defaultStats: InsertServerStats = {
+        serverId: serverId,
+        totalMessages: 0,
+        activeUsers: 0,
+        activeChannels: activeChannels,
+        percentChange: {
+          messages: 0,
+          users: 0,
+          channels: 0
+        },
+        generatedAt: new Date()
+      };
+      
+      return this.createServerStats(defaultStats);
+    }
+    
+    return stats;
   }
 
   async createServerStats(stats: InsertServerStats): Promise<ServerStats> {
