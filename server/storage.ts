@@ -266,7 +266,34 @@ export class MemStorage implements IStorage {
 
   async getLatestChannelSummary(channelId: string): Promise<ChannelSummary | undefined> {
     const summaries = await this.getChannelSummaries(channelId, 1);
-    return summaries.length > 0 ? summaries[0] : undefined;
+    
+    // If we have a summary, return it
+    if (summaries.length > 0) {
+      return summaries[0];
+    }
+    
+    // If this is a real Discord channel (ID length > 10) and no summary exists,
+    // create a placeholder summary
+    if (channelId.length > 10) {
+      const channel = await this.getChannel(channelId);
+      
+      if (channel) {
+        // Create a placeholder summary
+        const placeholderSummary: InsertChannelSummary = {
+          channelId: channelId,
+          summary: "No conversations have been analyzed yet. Check back later for an AI-generated summary of recent discussions.",
+          messageCount: 0,
+          activeUsers: 0,
+          keyTopics: [],
+          generatedAt: new Date()
+        };
+        
+        return this.createChannelSummary(placeholderSummary);
+      }
+    }
+    
+    // No summary and not a real Discord channel
+    return undefined;
   }
 
   async createChannelSummary(summary: InsertChannelSummary): Promise<ChannelSummary> {

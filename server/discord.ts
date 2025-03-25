@@ -228,16 +228,32 @@ export async function syncChannels(serverId: string): Promise<DiscordChannel[]> 
     throw new Error(`Guild with ID ${serverId} not found`);
   }
 
-  // Fetch all text channels
+  // Fetch all text channels - Discord.js v14 uses different channel type constants
+  // 0: GUILD_TEXT, 5: GUILD_ANNOUNCEMENT, 15: GUILD_FORUM
+  const textChannelTypes = [0, 5, 15];
+  
   const channels = guild.channels.cache
-    .filter(channel => channel.type === 0) // 0 is GUILD_TEXT
-    .map(channel => ({
-      id: channel.id,
-      serverId,
-      name: channel.name,
-      type: 'text',
-      isActive: true
-    }));
+    .filter(channel => {
+      // Filter for text-based channels
+      return textChannelTypes.includes(channel.type) && 
+             // Exclude channels with 'bot' or 'command' in the name (common bot channels)
+             !channel.name.toLowerCase().includes('bot') && 
+             !channel.name.toLowerCase().includes('command');
+    })
+    .map(channel => {
+      // Determine channel type for display
+      let type = 'text';
+      if (channel.type === 5) type = 'announcement';
+      if (channel.type === 15) type = 'forum';
+      
+      return {
+        id: channel.id,
+        serverId,
+        name: channel.name,
+        type: type,
+        isActive: true
+      };
+    });
 
   // Save to storage
   const savedChannels: DiscordChannel[] = [];
@@ -264,9 +280,19 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
 
   try {
     const channel = await client.channels.fetch(channelId);
-    if (!channel || !(channel instanceof TextChannel)) {
-      throw new Error(`Channel with ID ${channelId} not found or is not a text channel`);
+    if (!channel) {
+      throw new Error(`Channel with ID ${channelId} not found`);
     }
+    
+    // Check if the channel has message fetching capabilities
+    // TextChannel, NewsChannel, ThreadChannel have fetchMessages
+    if (!('messages' in channel)) {
+      log(`Channel ${channelId} (${channel.type}) does not support message fetching`, 'discord');
+      return [];
+    }
+    
+    // Cast to a channel type that has messages
+    const textChannel = channel as TextChannel;
 
     // Calculate the timestamp for 24 hours ago
     const oneDayAgo = new Date();
@@ -276,26 +302,32 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     let allMessages: Message[] = [];
     let lastId: string | undefined;
     let fetchedMessages: Collection<string, Message<boolean>>;
+    
+    try {
+      do {
+        const options: { limit: number; before?: string } = { limit: 100 };
+        if (lastId) options.before = lastId;
 
-    do {
-      const options: { limit: number; before?: string } = { limit: 100 };
-      if (lastId) options.before = lastId;
-
-      fetchedMessages = await channel.messages.fetch(options);
-      
-      if (fetchedMessages.size === 0) break;
-      
-      const recentMessages = fetchedMessages.filter(msg => msg.createdAt > oneDayAgo);
-      allMessages = [...allMessages, ...Array.from(recentMessages.values())];
-      
-      // Update the last ID for pagination
-      const lastMessage = fetchedMessages.last();
-      lastId = lastMessage?.id;
-      
-      // If the oldest message in this batch is already older than 24 hours, we can stop
-      if (lastMessage && lastMessage.createdAt <= oneDayAgo) break;
-      
-    } while (fetchedMessages.size === 100);
+        fetchedMessages = await textChannel.messages.fetch(options);
+        
+        if (fetchedMessages.size === 0) break;
+        
+        const recentMessages = fetchedMessages.filter(msg => msg.createdAt > oneDayAgo);
+        allMessages = [...allMessages, ...Array.from(recentMessages.values())];
+        
+        // Update the last ID for pagination
+        const lastMessage = fetchedMessages.last();
+        lastId = lastMessage?.id;
+        
+        // If the oldest message in this batch is already older than 24 hours, we can stop
+        if (lastMessage && lastMessage.createdAt <= oneDayAgo) break;
+        
+      } while (fetchedMessages.size === 100);
+    } catch (err: any) {
+      // If there's an error fetching messages (e.g., permission issues)
+      log(`Error in message fetching loop for channel ${channelId}: ${err.message}`, 'discord');
+      // Return whatever messages we did manage to get
+    }
 
     return allMessages;
   } catch (error: any) {
