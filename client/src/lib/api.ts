@@ -69,3 +69,9 @@ export const fetchSystemStatus = async () => {
   if (!response.ok) throw new Error('Failed to fetch system status');
   return response.json();
 };
+
+// Discord management API calls
+export const refreshDiscordConnection = async () => {
+  const response = await apiRequest('POST', '/api/discord/refresh', {});
+  return response.json();
+};
