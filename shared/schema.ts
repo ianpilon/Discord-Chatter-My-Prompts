@@ -86,3 +86,18 @@ export const userSettings = pgTable("user_settings", {
 export const insertUserSettingsSchema = createInsertSchema(userSettings);
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
+
+// Discord messages table
+export const discordMessages = pgTable("discord_messages", {
+  id: text("id").primaryKey(), // Discord message ID
+  channelId: text("channel_id").notNull().references(() => discordChannels.id, { onDelete: 'cascade' }),
+  authorId: text("author_id").notNull(),
+  authorName: text("author_name").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  processedAt: timestamp("processed_at").notNull().defaultNow(),
+});
+
+export const insertDiscordMessageSchema = createInsertSchema(discordMessages);
+export type InsertDiscordMessage = z.infer<typeof insertDiscordMessageSchema>;
+export type DiscordMessage = typeof discordMessages.$inferSelect;
