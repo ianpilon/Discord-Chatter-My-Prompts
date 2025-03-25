@@ -1,6 +1,6 @@
 import { scheduleJob } from 'node-schedule';
 import { storage } from './storage';
-import { getRecentMessages, getActiveUsers } from './discord';
+import { getRecentMessages, getActiveUsers, syncChannels } from './discord';
 import { generateChannelSummary } from './openai';
 import { log } from './vite';
 import { type InsertChannelSummary, type InsertServerStats } from '@shared/schema';
@@ -132,9 +132,10 @@ export async function generateServerSummary(serverId: string) {
     // Check if channels are empty, if so try to sync them
     if (channels.length === 0) {
       log(`No channels found for server ${serverId}, attempting to sync from Discord`, 'scheduler');
-      const discordModule = require('./discord');
+      // Import the Discord module using ESM style import
       try {
-        await discordModule.syncChannels(serverId);
+        // Instead of require, directly use the imported function from the module imports
+        await syncChannels(serverId);
         // Try getting channels again after sync
         const syncedChannels = await storage.getChannels(serverId);
         log(`After sync: found ${syncedChannels.length} channels for server ${serverId}`, 'scheduler');
