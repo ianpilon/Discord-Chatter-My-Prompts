@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { fetchServerDetails } from "@/lib/api";
+import { Hash } from "lucide-react";
+import MessageList from "@/components/ui/message-list";
 import Sidebar from "@/components/ui/sidebar";
 import ActivityHeader from "@/components/ui/activity-header";
 import StatsOverview from "@/components/ui/stats-overview";
-import ServerSummary from "@/components/ui/server-summary";
 import StatusFooter from "@/components/ui/status-footer";
+import ConnectServerDialog from "@/components/ui/connect-server-dialog";
+import { Button } from "@/components/ui/button";
 
 interface Server {
   id: string;
@@ -53,7 +56,11 @@ const Dashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const [isRecentMessagesExpanded, setIsRecentMessagesExpanded] = useState(true);
+  const [isOriginalMessagesExpanded, setIsOriginalMessagesExpanded] = useState(true);
   
   // Fetch servers
   const {
@@ -67,17 +74,21 @@ const Dashboard = () => {
   useEffect(() => {
     if (servers.length > 0 && !selectedServerId) {
       setSelectedServerId(servers[0].id);
-      setExpandedServers(new Set([servers[0].id]));
     }
   }, [servers, selectedServerId]);
   
-
+  // Reset selected channel when server changes
+  useEffect(() => {
+    setSelectedChannelId(null);
+  }, [selectedServerId]);
+  
   
   // Fetch server details (which now includes channels) for the selected server
   const {
     data: serverDetails,
     isLoading: isLoadingServerDetails,
-    refetch: refetchServerDetails
+    refetch: refetchServerDetails,
+    error: serverDetailsError
   } = useQuery<{ server: Server, stats: ServerStats, channels: Channel[] }>({
     queryKey: ['/api/servers', selectedServerId],
     enabled: !!selectedServerId,
@@ -95,8 +106,58 @@ const Dashboard = () => {
     }
   }, [serverDetails]);
   
+  // Handle API errors and show toast with reconnect option
+  useEffect(() => {
+    if (serverDetailsError) {
+      // Check if it's a 404 error which likely means token is invalid or expired
+      const is404 = (serverDetailsError as any)?.response?.status === 404;
+      
+      toast({
+        title: is404 ? "Discord connection error" : "Error loading server data",
+        description: is404 
+          ? "Your Discord bot token may be invalid or expired. Click below to reconnect."
+          : "There was a problem loading your server data. Try reconnecting your Discord bot.",
+        variant: "destructive",
+        action: (
+          <Button 
+            variant="outline" 
+            onClick={() => setConnectDialogOpen(true)}
+          >
+            Reconnect Discord
+          </Button>
+        )
+      });
+    }
+  }, [serverDetailsError, toast]);
+  
   // Get channels for selected server from serverDetails
   const channels = serverDetails?.channels || [];
+  
+  // Auto-sync messages when a channel is selected
+  useEffect(() => {
+    // Only sync when we have a selected channel and server details are loaded
+    // This means the Discord connection is working correctly
+    if (selectedChannelId && serverDetails?.server) {
+      console.log(`Auto-syncing messages for channel ${selectedChannelId}...`);
+      // Sync messages directly from Discord when a channel is selected
+      fetch(`/api/channels/${selectedChannelId}/sync-messages`, { 
+        method: 'POST' 
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to sync messages');
+          return res.json();
+        })
+        .then(data => {
+          console.log(`Auto-synced ${data.saved} messages for channel ${selectedChannelId}`);
+          // Invalidate queries to refetch messages using the correct syntax
+          queryClient.invalidateQueries({ queryKey: [`/api/channels/${selectedChannelId}/messages`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/channels/${selectedChannelId}/original-messages`] });
+        })
+        .catch(error => {
+          console.error('Auto-sync failed:', error);
+        });
+    }
+  }, [selectedChannelId, serverDetails, queryClient]);
   
   // If we have no channels, let's trigger a sync operation to get them
   useEffect(() => {
@@ -161,8 +222,8 @@ const Dashboard = () => {
           const response = await fetch(`/api/channels/${channel.id}/messages?limit=10`);
           if (response.ok) {
             const data = await response.json();
-            messages[channel.id] = data;
-            console.log(`Fetched messages for channel ${channel.id}:`, data);
+            messages[channel.id] = data.messages;
+            console.log(`Fetched messages for channel ${channel.id}:`, data.messages);
           }
         } catch (error) {
           console.error(`Failed to fetch messages for channel ${channel.id}:`, error);
@@ -173,8 +234,35 @@ const Dashboard = () => {
     }
   });
   
+  // Fetch original messages (first messages in the last 24 hours) for each channel
+  const {
+    data: originalMessagesMap = {},
+    isLoading: isLoadingOriginalMessages
+  } = useQuery<Record<string, any>>({
+    queryKey: ['/api/channel-original-messages', selectedServerId],
+    enabled: !!selectedServerId && channels.length > 0,
+    queryFn: async () => {
+      const originalMessages: Record<string, any> = {};
+      
+      for (const channel of channels) {
+        try {
+          const response = await fetch(`/api/channels/${channel.id}/original-messages?limit=5`);
+          if (response.ok) {
+            const data = await response.json();
+            originalMessages[channel.id] = data.messages;
+            console.log(`Fetched original messages for channel ${channel.id}:`, data.messages);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch original messages for channel ${channel.id}:`, error);
+        }
+      }
+      
+      return originalMessages;
+    }
+  });
+  
   // All data loading status
-  const isLoading = isLoadingServers || isLoadingServerDetails || isLoadingSummaries || isLoadingMessages;
+  const isLoading = isLoadingServers || isLoadingServerDetails || isLoadingSummaries || isLoadingMessages || isLoadingOriginalMessages;
   
   // Stats for the stats overview component
   const statsData = {
@@ -376,7 +464,12 @@ const Dashboard = () => {
   
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#36393f] text-[#dcddde]">
-      <Sidebar onServerSelect={handleServerSelect} />
+      <Sidebar 
+        onServerSelect={handleServerSelect} 
+        onChannelSelect={setSelectedChannelId}
+        selectedServerId={selectedServerId}
+        selectedChannelId={selectedChannelId}
+      />
       
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <ActivityHeader 
@@ -392,47 +485,181 @@ const Dashboard = () => {
             isLoading={isLoading}
           />
           
-          {/* Selected Server Summary */}
+          {/* Channel Content Area */}
           {selectedServerId && (
-            <ServerSummary
-              server={{ id: selectedServerId, name: serverDetails?.server?.name || "Loading..." }}
-              channels={channels}
-              summaries={summariesMap}
-              messages={messagesMap}
-              isLoading={isLoading}
-            />
+            <div className="p-4">
+              {selectedChannelId ? (
+                // Show selected channel content
+                <div className="bg-[#2f3136] rounded-lg p-6">
+                  {channels.find(channel => channel.id === selectedChannelId) ? (
+                    <div>
+                      <div className="flex items-center mb-4">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                          <Hash className="h-5 w-5 mr-2 text-[#7289da]" />
+                          {channels.find(channel => channel.id === selectedChannelId)?.name || "Channel"}
+                        </h2>
+                      </div>
+                      
+                      {/* Channel Summary */}
+                      {summariesMap[selectedChannelId] ? (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold mb-2 text-[#dcddde]">Recent Activity Summary</h3>
+                          <div className="bg-[#36393f] p-4 rounded">
+                            <p className="text-[#dcddde] mb-4">{summariesMap[selectedChannelId].summary}</p>
+                            {summariesMap[selectedChannelId].keyTopics?.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-medium mb-2 text-[#dcddde]">Key Topics</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {summariesMap[selectedChannelId].keyTopics.map((topic, index) => (
+                                    <span key={index} className="bg-[#4f545c] text-xs px-2 py-1 rounded text-white">
+                                      {topic}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-[#36393f] p-4 rounded mb-6">
+                          <p className="text-[#72767d]">No recent activity summary available for this channel.</p>
+                        </div>
+                      )}
+                      
+                      {/* Here we place both message sections in order - Original Messages first, then Recent Messages */}
+                      
+                      {/* Original Messages Accordion */}
+                      <div className="mb-4">
+                        {originalMessagesMap[selectedChannelId] && originalMessagesMap[selectedChannelId].length > 0 ? (
+                          <>
+                            <div 
+                              className="flex items-center mb-2 cursor-pointer" 
+                              onClick={() => setIsOriginalMessagesExpanded(!isOriginalMessagesExpanded)}
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className={`h-5 w-5 text-[#7289da] mr-2 transition-transform ${isOriginalMessagesExpanded ? 'rotate-90' : ''}`} 
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <h3 className="text-lg font-semibold text-[#dcddde]">Original Messages</h3>
+                              <span className="ml-2 bg-[#4f545c] text-white text-xs px-2 py-0.5 rounded">
+                                {originalMessagesMap[selectedChannelId].length}
+                              </span>
+                              <span className="ml-2 text-[#72767d] text-xs">First messages in the last 24 hours</span>
+                              {!isOriginalMessagesExpanded && (
+                                <button 
+                                  className="ml-auto text-xs text-[#7289da] hover:underline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsOriginalMessagesExpanded(true);
+                                  }}
+                                >
+                                  Expand
+                                </button>
+                              )}
+                            </div>
+                            
+                            {isOriginalMessagesExpanded && (
+                              <MessageList 
+                                channelId={selectedChannelId}
+                                limit={10}
+                                messageData={originalMessagesMap[selectedChannelId]}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          <div className="bg-[#36393f] p-4 rounded">
+                            <div className="flex items-center mb-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#7289da] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              <h3 className="text-lg font-semibold text-[#dcddde]">Original Messages</h3>
+                            </div>
+                            <p className="text-[#72767d]">No original messages found in the last 24 hours.</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Recent Messages Accordion */}
+                      <div className="mb-4">
+                        {messagesMap[selectedChannelId] && messagesMap[selectedChannelId].length > 0 ? (
+                          <>
+                            <div 
+                              className="flex items-center mb-2 cursor-pointer" 
+                              onClick={() => setIsRecentMessagesExpanded(!isRecentMessagesExpanded)}
+                            >
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className={`h-5 w-5 text-[#7289da] mr-2 transition-transform ${isRecentMessagesExpanded ? 'rotate-90' : ''}`} 
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <h3 className="text-lg font-semibold text-[#dcddde]">Recent Messages</h3>
+                              <span className="ml-2 bg-[#4f545c] text-white text-xs px-2 py-0.5 rounded">
+                                {messagesMap[selectedChannelId].length}
+                              </span>
+                              {!isRecentMessagesExpanded && (
+                                <button 
+                                  className="ml-auto text-xs text-[#7289da] hover:underline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsRecentMessagesExpanded(true);
+                                  }}
+                                >
+                                  Expand
+                                </button>
+                              )}
+                            </div>
+                            
+                            {isRecentMessagesExpanded && (
+                              <MessageList 
+                                channelId={selectedChannelId}
+                                limit={20}
+                                messageData={messagesMap[selectedChannelId]}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          <div className="bg-[#36393f] p-4 rounded">
+                            <p className="text-[#72767d]">No recent messages in this channel.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center p-8">
+                      <p className="text-[#72767d]">Selected channel not found. Try selecting another channel.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // No channel selected, show welcome screen
+                <div className="bg-[#2f3136] rounded-lg p-8 text-center">
+                  <div className="w-16 h-16 bg-[#5865f2] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Hash className="h-8 w-8 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">Welcome to {serverDetails?.server?.name || "Discord Digest"}</h2>
+                  <p className="text-[#dcddde] mb-4">Select a channel from the sidebar to view its messages and activity summary.</p>
+                </div>
+              )}
+            </div>
           )}
-          
-          {/* Other Servers (Collapsed) */}
-          {servers
-            .filter(server => server.id !== selectedServerId)
-            .map(server => {
-              // For other servers, we don't have their channels loaded yet
-              // We'll just show empty channels for now
-              const isExpanded = expandedServers.has(server.id);
-              
-              return (
-                <ServerSummary
-                  key={server.id}
-                  server={server}
-                  channels={[]} // Empty channels for non-selected servers
-                  summaries={summariesMap}
-                  messages={messagesMap}
-                  collapsed={!isExpanded}
-                  onViewDetails={() => {
-                    if (isExpanded) {
-                      setSelectedServerId(server.id);
-                    } else {
-                      toggleServerExpansion(server.id);
-                    }
-                  }}
-                  isLoading={isLoading}
-                />
-              );
-            })}
         </div>
         
         <StatusFooter />
+        
+        {/* Connect Server Dialog */}
+        <ConnectServerDialog 
+          open={connectDialogOpen} 
+          onOpenChange={setConnectDialogOpen} 
+        />
       </main>
     </div>
   );

@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Settings } from "lucide-react";
-import { useMemo } from "react";
+import { Settings, Hash, ChevronRight, ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import ConnectServerDialog from "./connect-server-dialog";
 
 interface Server {
   id: string;
@@ -10,12 +11,50 @@ interface Server {
   isActive: boolean;
 }
 
-const Sidebar = ({ onServerSelect }: { onServerSelect: (serverId: string) => void }) => {
+interface Channel {
+  id: string;
+  serverId: string;
+  name: string;
+  type: string;
+}
+
+const Sidebar = ({ 
+  onServerSelect, 
+  onChannelSelect,
+  selectedServerId,
+  selectedChannelId 
+}: { 
+  onServerSelect: (serverId: string) => void;
+  onChannelSelect: (channelId: string) => void;
+  selectedServerId: string | null;
+  selectedChannelId: string | null;
+}) => {
   const [location] = useLocation();
+  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+  const [expandedServers, setExpandedServers] = useState<Record<string, boolean>>({});
+  const [hiddenChannels, setHiddenChannels] = useState<string[]>(() => {
+    // Try to load hidden channels from localStorage
+    const saved = localStorage.getItem('hiddenChannels');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   // Fetch servers
-  const { data: servers = [], isLoading } = useQuery<Server[]>({
+  const { data: servers = [], isLoading: isLoadingServers } = useQuery<Server[]>({
     queryKey: ['/api/servers'],
+  });
+  
+  // Fetch channels for the selected server
+  const { data: channels = [], isLoading: isLoadingChannels } = useQuery<Channel[]>({
+    queryKey: ['/api/servers/', selectedServerId, '/channels'],
+    enabled: !!selectedServerId,
+    queryFn: async () => {
+      if (!selectedServerId) return [];
+      const response = await fetch(`/api/servers/${selectedServerId}/channels`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch channels');
+      }
+      return response.json();
+    }
   });
   
   // Get initials for server icon
@@ -42,36 +81,154 @@ const Sidebar = ({ onServerSelect }: { onServerSelect: (serverId: string) => voi
     return colors[Math.abs(hashCode) % colors.length];
   };
   
+  // Toggle server expansion
+  const toggleServerExpansion = (serverId: string) => {
+    setExpandedServers(prev => ({
+      ...prev,
+      [serverId]: !prev[serverId]
+    }));
+  };
+  
+  // Hide a channel
+  const hideChannel = (channelId: string, event: React.MouseEvent) => {
+    // Stop the click from propagating to the channel item
+    event.stopPropagation();
+    event.preventDefault();
+    
+    console.log('Hiding channel:', channelId);
+    
+    // Add this channel to the hidden channels list
+    const newHiddenChannels = [...hiddenChannels, channelId];
+    setHiddenChannels(newHiddenChannels);
+    
+    // Save to localStorage
+    localStorage.setItem('hiddenChannels', JSON.stringify(newHiddenChannels));
+    
+    // If this was the selected channel, clear the selection
+    if (channelId === selectedChannelId) {
+      onChannelSelect('');
+    }
+  };
+  
+  // Server and channel items
   const serverItems = useMemo(() => {
-    return servers.map((server, index) => {
+    return servers.map((server) => {
       const initials = getServerInitials(server.name);
       const bgColor = getServerColor(server.name);
+      const isSelected = server.id === selectedServerId;
+      const isExpanded = expandedServers[server.id] || isSelected;
+      
+      // Filter channels for this server
+      const serverChannels = channels.filter(channel => channel.serverId === server.id);
       
       return (
-        <div 
-          key={server.id}
-          className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
-            index === 0 ? 'bg-[#36393f]' : 'hover:bg-[#36393f]/50'
-          }`}
-          onClick={() => onServerSelect(server.id)}
-        >
-          <div className="relative">
-            {server.icon ? (
-              <div className="w-8 h-8 rounded-full overflow-hidden">
-                <img src={server.icon} alt={server.name} className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className={`w-8 h-8 ${bgColor} rounded-full flex items-center justify-center text-white`}>
-                <span className="text-xs font-bold">{initials}</span>
-              </div>
-            )}
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#43b581] rounded-full border-2 border-[#202225]"></div>
+        <div key={server.id} className="mb-2">
+          {/* Server Header */}
+          <div 
+            className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
+              isSelected ? 'bg-[#36393f]' : 'hover:bg-[#36393f]/50'
+            }`}
+            onClick={() => {
+              onServerSelect(server.id);
+              toggleServerExpansion(server.id);
+            }}
+          >
+            <div className="flex-shrink-0">
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-[#72767d]" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-[#72767d]" />
+              )}
+            </div>
+            <div className="relative ml-1">
+              {server.icon ? (
+                <div className="w-6 h-6 rounded-full overflow-hidden">
+                  <img src={server.icon} alt={server.name} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className={`w-6 h-6 ${bgColor} rounded-full flex items-center justify-center text-white`}>
+                  <span className="text-xs font-bold">{initials}</span>
+                </div>
+              )}
+              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#43b581] rounded-full border border-[#202225]"></div>
+            </div>
+            <span className="ml-2 text-sm text-white truncate">{server.name}</span>
           </div>
-          <span className="ml-2 hidden lg:block">{server.name}</span>
+          
+          {/* Channel List */}
+          {isExpanded && (
+            <div className="ml-4 mt-1">
+              {serverChannels.length > 0 ? (
+                // Filter out hidden channels
+                serverChannels.filter(channel => !hiddenChannels.includes(channel.id)).map(channel => (
+                  <div
+                    key={channel.id}
+                    className={`flex items-center justify-between p-2 pl-3 rounded cursor-pointer group ${
+                      channel.id === selectedChannelId 
+                        ? 'bg-[#36393f] text-white' 
+                        : 'text-[#72767d] hover:bg-[#36393f]/50 hover:text-[#dcddde]'
+                    }`}
+                    onClick={() => onChannelSelect(channel.id)}
+                  >
+                    <div className="flex items-center overflow-hidden">
+                      <Hash className="h-4 w-4 mr-1 flex-shrink-0" />
+                      <span className="text-sm truncate">{channel.name}</span>
+                    </div>
+                    <div
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer text-[#72767d] hover:text-white hover:bg-[#ed4245] rounded p-1"
+                      onClick={(e) => hideChannel(channel.id, e)}
+                      title="Hide channel"
+                      aria-label="Hide channel"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          hideChannel(channel.id, e as unknown as React.MouseEvent);
+                        }
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6L6 18"></path>
+                        <path d="M6 6l12 12"></path>
+                      </svg>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                isLoadingChannels ? (
+                  <div className="p-2 text-xs text-[#72767d]">Loading channels...</div>
+                ) : (
+                  <div className="p-2 text-xs text-[#72767d]">No channels found</div>
+                )
+              )}
+              {/* Show hidden channels count if any */}
+              {serverChannels.filter(channel => hiddenChannels.includes(channel.id)).length > 0 && (
+                <div className="p-2 text-xs text-[#72767d] mt-2 border-t border-[#2f3136] pt-2">
+                  <button
+                    className="text-xs text-[#72767d] hover:text-[#dcddde] flex items-center"
+                    onClick={() => {
+                      // Clear hidden channels for this server
+                      const newHiddenChannels = hiddenChannels.filter(
+                        channelId => !serverChannels.some(channel => channel.id === channelId)
+                      );
+                      setHiddenChannels(newHiddenChannels);
+                      localStorage.setItem('hiddenChannels', JSON.stringify(newHiddenChannels));
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                      <path d="M12 5v14"></path>
+                      <path d="M5 12h14"></path>
+                    </svg>
+                    Show {serverChannels.filter(channel => hiddenChannels.includes(channel.id)).length} hidden channel(s)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     });
-  }, [servers, onServerSelect]);
+  }, [servers, channels, selectedServerId, selectedChannelId, expandedServers, isLoadingChannels, onServerSelect, onChannelSelect]);
   
   return (
     <aside className="bg-[#202225] w-full md:w-16 lg:w-64 flex-shrink-0 overflow-hidden flex flex-col h-full">
@@ -95,7 +252,7 @@ const Sidebar = ({ onServerSelect }: { onServerSelect: (serverId: string) => voi
         
         {/* Server items */}
         <div className="space-y-1">
-          {isLoading ? (
+          {isLoadingServers ? (
             // Loading skeleton
             Array(5).fill(0).map((_, i) => (
               <div key={i} className="flex items-center p-2 rounded">
@@ -110,13 +267,22 @@ const Sidebar = ({ onServerSelect }: { onServerSelect: (serverId: string) => voi
         
         {/* Add server button */}
         <div className="mt-4">
-          <button className="w-full flex items-center justify-center lg:justify-start p-2 rounded bg-[#2f3136] hover:bg-[#36393f] transition-colors">
+          <button 
+            onClick={() => setConnectDialogOpen(true)}
+            className="w-full flex items-center justify-center lg:justify-start p-2 rounded bg-[#2f3136] hover:bg-[#36393f] transition-colors"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#7289da]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span className="ml-2 text-[#7289da] hidden lg:block">Connect Server</span>
           </button>
         </div>
+        
+        {/* Connect Server Dialog */}
+        <ConnectServerDialog 
+          open={connectDialogOpen} 
+          onOpenChange={setConnectDialogOpen} 
+        />
       </div>
       
       {/* User Profile */}

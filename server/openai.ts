@@ -2,12 +2,34 @@ import OpenAI from "openai";
 import { log } from "./vite";
 import { type Message } from "discord.js";
 
-// Initialize OpenAI client
+// Initialize OpenAI client or use mock implementation
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Check if we're using a mock API key
+const isMockMode = process.env.OPENAI_API_KEY === 'mock';
+log(`OpenAI API mode: ${isMockMode ? 'MOCK' : 'LIVE'}`, 'openai');
+
+// Create the OpenAI client
+let openai: OpenAI;
+
+if (!isMockMode) {
+  try {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  } catch (error) {
+    log(`Error initializing OpenAI: ${error}`, 'openai');
+    // Create a fallback implementation
+    openai = {} as OpenAI;
+  }
+}
 
 // Check if OpenAI API is available
 export async function checkOpenAIStatus(): Promise<boolean> {
+  // If in mock mode, just return true
+  if (isMockMode) {
+    log('Using mock OpenAI API - status check passed automatically', 'openai');
+    return true;
+  }
+  
   try {
     await openai.models.list();
     return true;
@@ -92,18 +114,30 @@ export async function generateChannelSummary(messages: Message[], channelName: s
     `;
 
     log(`Sending request to OpenAI for channel ${channelName}`, 'openai');
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    });
+    
+    // Handle mock mode or use real OpenAI
+    let responseText: string;
+    
+    if (isMockMode) {
+      log('Using mock OpenAI response', 'openai');
+      responseText = JSON.stringify({
+        summary: `This channel contains ${messages.length} messages discussing ${channelName} topics. Users have been active recently.`,
+        keyTopics: ['Discord Chat', 'Channel Activity', 'Community Discussion']
+      });
+    } else {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      });
+      responseText = response.choices[0].message.content || "{}"
+    }
 
-    log(`Received response from OpenAI for ${channelName}`, 'openai');
-    const resultText = response.choices[0].message.content || "{}";
-    log(`Raw response: ${resultText.substring(0, 100)}...`, 'openai');
+    log(`Received response for ${channelName}`, 'openai');
+    log(`Raw response: ${responseText.substring(0, 100)}...`, 'openai');
     
     try {
-      const result = JSON.parse(resultText);
+      const result = JSON.parse(responseText);
       log(`Parsed JSON result successfully for ${channelName}`, 'openai');
       
       return {
@@ -111,7 +145,7 @@ export async function generateChannelSummary(messages: Message[], channelName: s
         keyTopics: result.keyTopics || []
       };
     } catch (parseError: any) {
-      log(`Error parsing OpenAI response for ${channelName}: ${parseError.message}`, 'openai');
+      log(`Error parsing response for ${channelName}: ${parseError.message}`, 'openai');
       // If parsing fails, return a basic summary
       return {
         summary: `Generated summary for ${channelName} based on ${messages.length} messages.`,

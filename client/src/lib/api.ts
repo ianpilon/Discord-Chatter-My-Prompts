@@ -67,6 +67,49 @@ export const fetchChannelMessages = async (channelId: string, limit?: number) =>
   }
 };
 
+// Analyze sentiment of messages
+export const analyzeMessageSentiment = async (channelId: string, messages: any[]) => {
+  try {
+    const response = await fetch(`/api/channels/${channelId}/analyze-sentiment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages }),
+    });
+    
+    if (!response.ok) {
+      // First check if the response is HTML (common error response from servers)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        const text = await response.text();
+        console.error('Server returned HTML instead of JSON:', text.substring(0, 100));
+        throw new Error('Server returned HTML instead of JSON. Check server logs for details.');
+      }
+      
+      // Otherwise, try to get error details from the JSON response
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to analyze messages: ${response.statusText}`);
+      } catch (jsonError) {
+        // If parsing JSON fails, use the status text
+        throw new Error(`Failed to analyze messages: ${response.statusText}`);
+      }
+    }
+    
+    // Try to safely parse the successful response
+    try {
+      return await response.json();
+    } catch (jsonError) {
+      console.error('Failed to parse JSON response:', jsonError);
+      throw new Error('Failed to parse analysis results. The response was not valid JSON.');
+    }
+  } catch (error) {
+    console.error('Error analyzing message sentiment:', error);
+    throw error;
+  }
+};
+
 export const generateServerSummary = async (serverId: string) => {
   const response = await apiRequest('POST', `/api/servers/${serverId}/generate-summary`, {});
   return response.json();

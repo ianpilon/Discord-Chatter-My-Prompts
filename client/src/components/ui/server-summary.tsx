@@ -62,16 +62,17 @@ const ServerSummary = ({
       console.log(`Found ${testChannels.length} test channels`);
     }
     
-    // IMPORTANT: Show ALL channels in the list, not just ones with summaries
+    // IMPORTANT: Always show ALL channels regardless of activity
     // This ensures users can see their channels even if there's no activity
-    const filtered = channels.filter(channel => {
-      // Include text channels and exclude voice channels
-      if (channel.type !== "0" && channel.type !== "GUILD_TEXT") {
-        return false;
-      }
-      
-      // Show all channels - this is the main change
-      return true;
+    let filtered = [...channels]; // Start with all channels
+    
+    console.log(`All channels before filtering: ${JSON.stringify(filtered)}`);
+    
+    // Only filter out voice channels, keep all text channels
+    filtered = filtered.filter(channel => {
+      // We're going to display all channel types, but if you want to filter:
+      // Text channel types typically are '0', 'GUILD_TEXT', 'text'
+      return true; // Show ALL channels regardless of type
     });
     
     // Sort channels to put test channels first
@@ -84,7 +85,7 @@ const ServerSummary = ({
       return 0;
     });
     
-    console.log(`Filtered to ${filtered.length} active channels for display`);
+    console.log(`Displaying ${filtered.length} channels for server ${server.name || server.id}`);
     return filtered;
   }, [channels, summaries, server.id, server.name, isTestChannel]);
   

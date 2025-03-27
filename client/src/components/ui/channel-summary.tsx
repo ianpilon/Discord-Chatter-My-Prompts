@@ -35,7 +35,7 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
   console.log(`Rendering ChannelSummary for ${channel.name} (${channel.id}), summary:`, summary);
   
   // Identify test channels
-  const isTestChannel = channel.name.toLowerCase() === 'chatbot-testing' || channel.id === '1332443868473463006';
+  const isTestChannel = channel.name.toLowerCase() === 'chatbot-testing' || channel.id === '1332443868473463006' || channel.name.includes('test');
   
   // Handle the case where summary doesn't exist yet
   const hasSummary = summary && typeof summary === 'object';
@@ -96,9 +96,9 @@ const ChannelSummary = ({ channel, summary, messages }: ChannelSummaryProps) => 
                   <MessageCircle className="mr-1 h-4 w-4" /> Original Messages
                 </h4>
                 {messages && messages.length > 0 ? (
-                  <MessageList channelId={channel.id} limit={20} messageData={messages} />
+                  <MessageList channelId={channel.id} limit={20} messageData={messages} isTestChannel={isTestChannel} />
                 ) : (
-                  <MessageList channelId={channel.id} limit={20} />
+                  <MessageList channelId={channel.id} limit={20} isTestChannel={isTestChannel} />
                 )}
               </div>
             </>

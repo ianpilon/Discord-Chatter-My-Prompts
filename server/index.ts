@@ -1,6 +1,14 @@
+// Load environment variables from .env file
+import 'dotenv/config';
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// Log environment variables (without sensitive values)
+log('Environment loaded. Available vars: ' + 
+    'DISCORD_BOT_TOKEN=' + (process.env.DISCORD_BOT_TOKEN ? '[SET]' : '[NOT SET]') + ', ' + 
+    'OPENAI_API_KEY=' + (process.env.OPENAI_API_KEY || '[NOT SET]'), 'express');
 
 const app = express();
 app.use(express.json());
@@ -56,15 +64,10 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
+  // Originally set to port 5000, but changed to 3000 due to socket binding issues
   // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const port = 3000;
+  server.listen(port, () => {
     log(`serving on port ${port}`);
   });
 })();

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, AlertCircle, RefreshCw } from "lucide-react";
-import { fetchChannelMessages } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { MessageCircle, AlertCircle, RefreshCw, BarChart2, Loader2 } from "lucide-react";
+import { fetchChannelMessages, analyzeMessageSentiment } from "@/lib/api";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, formatDistance } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { AnalysisResultsDialog } from "./analysis-results-dialog";
 
 interface DiscordMessage {
   id: string;
@@ -23,6 +25,10 @@ interface MessageListProps {
 
 const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData }: MessageListProps) => {
   const [expanded, setExpanded] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisButtonState, setAnalysisButtonState] = useState<'idle' | 'clicked'>('idle');
+  const { toast } = useToast();
   
   const {
     data: messagesData,
@@ -36,8 +42,8 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
       console.log("Messages response for channel", channelId, ":", response);
       return response;
     },
-    // Skip API call if messageData is provided
-    enabled: !!channelId && !messageData,
+    // Always enable for test channels, otherwise skip if messageData is provided
+    enabled: !!channelId && (isTestChannel || !messageData),
     retry: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -46,15 +52,82 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
   const messages = messageData || messagesData?.messages || [];
   const hasMessages = Array.isArray(messages) && messages.length > 0;
   
+  // Add more logging for debugging
+  console.log(`MessageList for channel ${channelId}:`, {
+    messageData,
+    messagesFromAPI: messagesData?.messages,
+    finalMessages: messages,
+    hasMessages,
+    isTestChannel
+  });
+  
   // If messageData is provided, we're never in a loading state
   const actualIsLoading = messageData ? false : isLoading;
   
-  // Skip API call if messageData is provided
+  // Sync messages mutation
+  const syncMessagesMutation = useMutation({
+    mutationFn: () => {
+      return fetch(`/api/channels/${channelId}/sync-messages`, { 
+        method: 'POST'
+      }).then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to sync messages from Discord');
+        }
+        return res.json();
+      });
+    },
+    onSuccess: (data) => {
+      refetch(); // Refetch messages after syncing
+      toast({
+        title: 'Messages synced',
+        description: `${data.saved} messages retrieved from Discord`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Sync failed',
+        description: error.message || 'Could not sync messages from Discord',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Sentiment analysis mutation
+  const sentimentAnalysis = useMutation({
+    mutationFn: () => {
+      const messagesToAnalyze = messages;
+      if (!messagesToAnalyze || messagesToAnalyze.length === 0) {
+        throw new Error('No messages to analyze');
+      }
+      return analyzeMessageSentiment(channelId, messagesToAnalyze);
+    },
+    onSuccess: (data) => {
+      setAnalysisResult(data.analysis);
+      setShowAnalysis(true);
+      toast({
+        title: 'Analysis complete',
+        description: 'Discord chat sentiment analysis is ready!',
+        variant: 'default',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Analysis failed',
+        description: error.message || 'Could not analyze messages',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Special handling for test channels - always fetch messages even if messageData is provided
   useEffect(() => {
     if (messageData && messageData.length > 0) {
       console.log("Using provided messageData for channel", channelId, ":", messageData);
+    } else if (isTestChannel) {
+      console.log("This is a test channel - forcing refresh of messages");
+      refetch();
     }
-  }, [messageData, channelId]);
+  }, [messageData, channelId, isTestChannel, refetch]);
   
   return (
     <div className="mt-4 border-t border-gray-700 pt-4">
@@ -77,12 +150,96 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
               Refresh
             </button>
           )}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-[#72767d] hover:text-[#dcddde]"
-          >
-            {expanded ? "Collapse" : "Expand"}
-          </button>
+          <div className="flex gap-2">
+            {/* Sync Messages button - always visible regardless of message status */}
+            <button
+              onClick={() => syncMessagesMutation.mutate()}
+              disabled={syncMessagesMutation.isPending}
+              className={`text-xs px-2 py-1 rounded flex items-center transition-all duration-200 ${
+                syncMessagesMutation.isPending 
+                  ? 'bg-blue-500/40 text-white shadow-inner' 
+                  : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+              }`}
+            >
+              {syncMessagesMutation.isPending ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              {syncMessagesMutation.isPending ? 'Syncing...' : 'Sync Messages'}
+            </button>
+            
+            {hasMessages && (
+              <button
+                onClick={() => {
+                  // Track start time when the button is clicked for response timing
+                  const startTime = Date.now();
+                  
+                  // Update component state to track initial click without full loading state
+                  setAnalysisButtonState('clicked');
+                  
+                  // Trigger the mutation
+                  sentimentAnalysis.mutate(undefined, {
+                    onSuccess: (data) => {
+                      // Calculate response time
+                      const responseTime = Date.now() - startTime;
+                      console.log(`Sentiment analysis completed in ${responseTime}ms`);
+                      
+                      // Reset button state
+                      setAnalysisButtonState('idle');
+                      
+                      // Continue with normal success handling
+                      setAnalysisResult(data.analysis);
+                      setShowAnalysis(true);
+                      toast({
+                        title: 'Analysis complete',
+                        description: 'Discord chat sentiment analysis is ready!',
+                        variant: 'default',
+                      });
+                    },
+                    onError: (error: any) => {
+                      // Reset button state
+                      setAnalysisButtonState('idle');
+                      
+                      // Continue with normal error handling
+                      toast({
+                        title: 'Analysis failed',
+                        description: error.message || 'Could not analyze messages',
+                        variant: 'destructive',
+                      });
+                    }
+                  });
+                }}
+                disabled={sentimentAnalysis.isPending || analysisButtonState !== 'idle'}
+                className={`text-xs px-2 py-1 rounded flex items-center transition-all duration-200 ${
+                  analysisButtonState === 'clicked' 
+                    ? 'bg-[#7289da]/30 text-[#7289da] scale-[0.98]' // Subtle feedback for initial click
+                    : sentimentAnalysis.isPending 
+                      ? 'bg-[#7289da]/40 text-[#7289da] shadow-inner' // More visible for longer loading
+                      : 'bg-[#7289da]/20 text-[#7289da] hover:bg-[#7289da]/30' // Default state
+                }`}
+              >
+                {sentimentAnalysis.isPending ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : analysisButtonState === 'clicked' ? (
+                  <BarChart2 className="h-3 w-3 mr-1 animate-pulse" />
+                ) : (
+                  <BarChart2 className="h-3 w-3 mr-1" />
+                )}
+                {sentimentAnalysis.isPending 
+                  ? 'Analyzing...' 
+                  : analysisButtonState === 'clicked' 
+                    ? 'Working...' 
+                    : 'Analyze this chatter'}
+              </button>
+            )}
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-[#72767d] hover:text-[#dcddde]"
+            >
+              {expanded ? "Collapse" : "Expand"}
+            </button>
+          </div>
         </div>
       </div>
       
@@ -142,6 +299,13 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
               <div className="pl-11 text-[#dcddde] whitespace-pre-wrap">{message.content}</div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Sentiment Analysis Results Button */}
+      {showAnalysis && analysisResult && (
+        <div className="mt-4 flex justify-end">
+          <AnalysisResultsDialog analysisResult={analysisResult} />
         </div>
       )}
       

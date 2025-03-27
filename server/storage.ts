@@ -24,6 +24,7 @@ export interface IStorage {
   getChannels(serverId: string): Promise<DiscordChannel[]>;
   getChannel(id: string): Promise<DiscordChannel | undefined>;
   createChannel(channel: InsertDiscordChannel): Promise<DiscordChannel>;
+  createOrUpdateChannel(channel: Partial<DiscordChannel> & { id: string }): Promise<DiscordChannel>;
   
   // Channel summary methods
   getChannelSummaries(channelId: string, limit?: number): Promise<ChannelSummary[]>;
@@ -262,6 +263,34 @@ export class MemStorage implements IStorage {
     this.discordChannels.set(channel.id, newChannel);
     return newChannel;
   }
+  
+  // Create or update a channel in storage
+  async createOrUpdateChannel(channel: Partial<DiscordChannel> & { id: string }): Promise<DiscordChannel> {
+    const existingChannel = await this.getChannel(channel.id);
+    
+    if (existingChannel) {
+      // Update existing channel
+      const updatedChannel: DiscordChannel = {
+        ...existingChannel,
+        ...channel
+      };
+      
+      this.discordChannels.set(updatedChannel.id, updatedChannel);
+      return updatedChannel;
+    } else {
+      // Create new channel with default values for missing properties
+      const newChannel: DiscordChannel = {
+        id: channel.id,
+        serverId: channel.serverId || 'unknown',
+        name: channel.name || 'Unknown Channel',
+        type: channel.type || '0',
+        isActive: channel.isActive !== undefined ? channel.isActive : true
+      };
+      
+      this.discordChannels.set(newChannel.id, newChannel);
+      return newChannel;
+    }
+  }
 
   // Channel summary methods
   async getChannelSummaries(channelId: string, limit: number = 5): Promise<ChannelSummary[]> {
@@ -402,6 +431,22 @@ export class MemStorage implements IStorage {
     return Array.from(this.discordMessages.values())
       .filter(message => message.channelId === channelId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
+  
+  // Get original messages (first messages in the last 24 hours)
+  async getChannelOriginalMessages(channelId: string, limit: number = 5): Promise<DiscordMessage[]> {
+    // Calculate the timestamp for 24 hours ago
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    
+    // Get messages from the last 24 hours, sorted by timestamp ascending (oldest first)
+    return Array.from(this.discordMessages.values())
+      .filter(message => {
+        const messageDate = new Date(message.createdAt);
+        return message.channelId === channelId && messageDate >= twentyFourHoursAgo;
+      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .slice(0, limit);
   }
   
