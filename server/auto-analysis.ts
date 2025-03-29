@@ -117,7 +117,7 @@ export function initializeAutoAnalysisService() {
 /**
  * Check all channels for auto-analysis triggers
  */
-async function checkChannelsForAutoAnalysis() {
+export async function checkChannelsForAutoAnalysis() {
   // Get user settings to check if auto-analysis is enabled
   const userSettings = await storage.getUserSettings(1); // Using default user ID
   
