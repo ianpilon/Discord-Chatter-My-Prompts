@@ -11,7 +11,7 @@
   "crons": [
     {
       "path": "/api/cron/auto-analysis",
-      "schedule": "* * * * *"
+      "schedule": "0 12 * * *"
     }
   ],
   "env": {

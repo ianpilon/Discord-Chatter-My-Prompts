@@ -1,0 +1,26 @@
+name: Scheduled Discord Analysis
+
+on:
+  schedule:
+    # Run every hour on the hour
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  trigger-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto-Analysis Endpoint
+        id: trigger-analysis
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: ${{ secrets.ANALYSIS_ENDPOINT }}
+          method: 'POST'
+          headers: '{"Authorization": "Bearer ${{ secrets.CRON_SECRET }}"}'
+          timeout: 60000 # 60 seconds timeout
+      
+      - name: Log Result
+        if: always()
+        run: |
+          echo "Status code: ${{ steps.trigger-analysis.outputs.status }}"
+          echo "Response: ${{ steps.trigger-analysis.outputs.response }}"

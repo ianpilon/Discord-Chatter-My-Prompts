@@ -32,6 +32,30 @@ The following environment variables must be configured in your Vercel project se
 3. Configure all environment variables listed above
 4. Deploy the application
 
+## Scheduled Auto-Analysis with GitHub Actions
+
+Because Vercel's Hobby tier has limitations on cron job frequency (once per day maximum), we've implemented a GitHub Actions workflow to trigger the auto-analysis endpoint more frequently:
+
+1. **GitHub Actions Workflow**: Located at `.github/workflows/trigger-analysis.yml`
+2. **Schedule**: Configured to run hourly, but can be adjusted as needed
+3. **Manual Triggering**: Can also be triggered manually through the GitHub Actions UI
+
+### Required GitHub Repository Secrets
+
+After deploying to Vercel, you'll need to add these secrets to your GitHub repository:
+
+| Secret | Description | Example |
+|--------|-------------|----------|
+| `ANALYSIS_ENDPOINT` | Full URL to your auto-analysis endpoint | `https://your-app.vercel.app/api/cron/auto-analysis` |
+| `CRON_SECRET` | Authentication token (matching the CRON_SECRET in Vercel env) | `your-secure-token` |
+
+### Setting Up GitHub Secrets
+
+1. Go to your repository on GitHub
+2. Navigate to Settings > Secrets and variables > Actions
+3. Click "New repository secret"
+4. Add the secrets listed above
+
 ## Serverless Considerations
 
 Vercel's platform uses a serverless architecture, which differs from a traditional Express server in several ways:
