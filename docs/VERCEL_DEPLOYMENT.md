@@ -84,10 +84,62 @@ Be aware that serverless functions have "cold starts" - the initial request afte
 
 ## Troubleshooting
 
-- Check Vercel function logs in the dashboard if functionality is not working as expected
-- Verify environment variables are correctly set
-- For Discord-related issues, ensure your bot is properly invited to the servers and has the necessary permissions
-- For database issues, confirm your Neon database connection string is correct and includes all required parameters
+### Common Issues and Solutions
+
+#### 1. MIME Type Errors with ES Modules
+
+**Issue**: Error message `Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of "application/octet-stream"`
+
+**Solution**: 
+- Update Content-Type headers in vercel.json to use `text/javascript` instead of `application/javascript`
+- Example configuration:
+```json
+{
+  "headers": [
+    {
+      "source": "/(.*).js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/javascript; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### 2. 404 Errors with API Routes
+
+**Issue**: API endpoints returning 404 Not Found errors
+
+**Solutions**:
+1. Verify API route structure:
+   - Move API routes to the correct Vercel directory structure
+   - API files should be in `/api` directory at project root, not in `/server/api`
+2. Example path structure:
+   - ❌ `/server/api/cron/auto-analysis.ts` (won't work)
+   - ✅ `/api/cron/auto-analysis.ts` (correct location)
+
+#### 3. URL Configuration Issues
+
+**Issue**: Mismatch between GitHub Actions configuration and actual deployment URL
+
+**Solution**:
+1. Check the actual deployment URL in Vercel dashboard
+2. Update GitHub repository secrets:
+   - Update `ANALYSIS_ENDPOINT` to match the correct Vercel deployment URL
+   - Format: `https://your-app.vercel.app/api/cron/auto-analysis`
+3. Verify URL format:
+   - Ensure correct spelling of 'vercel.app'
+   - Include complete path to the endpoint
+
+### General Troubleshooting Steps
+
+1. Check Vercel function logs in the dashboard if functionality is not working as expected
+2. Verify environment variables are correctly set
+3. For Discord-related issues, ensure your bot is properly invited to the servers and has the necessary permissions
+4. For database issues, confirm your Neon database connection string is correct and includes all required parameters
 
 ## Limitations
 
