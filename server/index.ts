@@ -65,8 +65,9 @@ app.use((req, res, next) => {
   }
 
   // Originally set to port 5000, but changed to 3000 due to socket binding issues
+  // Now using port 3001 to avoid conflicts with other running services
   // this serves both the API and the client.
-  const port = 3000;
+  const port = 3001;
   server.listen(port, () => {
     log(`serving on port ${port}`);
   });

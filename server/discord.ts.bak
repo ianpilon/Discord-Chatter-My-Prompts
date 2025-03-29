@@ -2,7 +2,6 @@ import { Client, GatewayIntentBits, TextChannel, Collection, Message } from 'dis
 import { storage } from './storage';
 import { log } from './vite';
 import fetch from 'node-fetch';
-import { generateSampleMessages } from './sample-messages';
 import { 
   type InsertDiscordServer, 
   type InsertDiscordChannel,
@@ -352,8 +351,24 @@ export async function getRecentMessages(channelId: string): Promise<Message[]> {
     // This ensures that message retrieval works even without Discord token
     log(`Discord client not connected, returning mock messages for channel ${channelId}`, 'discord');
     
-    // Use our sample message generator to create realistic mock messages
-    return generateSampleMessages(channelId);
+    // Create mock messages that will appear in the UI
+    const mockMessage1 = {
+      id: '1000000000000000001',
+      channelId: channelId,
+      author: { id: '123456789', username: 'test-user' },
+      content: 'This is a mock message for testing. The real Discord client is not connected.',
+      createdAt: new Date(),
+    } as unknown as Message;
+    
+    const mockMessage2 = {
+      id: '1000000000000000002',
+      channelId: channelId,
+      author: { id: '123456789', username: 'test-user' },
+      content: 'Please add your Discord bot token in the UI settings to see real messages.',
+      createdAt: new Date(),
+    } as unknown as Message;
+    
+    return [mockMessage1, mockMessage2];
     // Original error: throw new Error('Discord client is not connected');
   }
 
@@ -520,8 +535,24 @@ export async function getAllMessages(channelId: string): Promise<Message[]> {
     // Return mock messages when Discord client isn't connected
     log(`Discord client not connected, returning mock messages for channel ${channelId}`, 'discord');
     
-    // Use our sample message generator to create realistic mock messages
-    return generateSampleMessages(channelId);
+    // Create mock messages that will appear in the UI
+    const mockMessage1 = {
+      id: '1000000000000000001',
+      channelId: channelId,
+      author: { id: '123456789', username: 'test-user' },
+      content: 'This is a mock message for testing. The real Discord client is not connected.',
+      createdAt: new Date(),
+    } as unknown as Message;
+    
+    const mockMessage2 = {
+      id: '1000000000000000002',
+      channelId: channelId,
+      author: { id: '123456789', username: 'test-user' },
+      content: 'Please add your Discord bot token in the UI settings to see real messages.',
+      createdAt: new Date(),
+    } as unknown as Message;
+    
+    return [mockMessage1, mockMessage2];
   }
 
   try {

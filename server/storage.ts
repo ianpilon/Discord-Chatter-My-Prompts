@@ -42,6 +42,7 @@ export interface IStorage {
   
   // Discord messages methods
   getChannelMessages(channelId: string, limit?: number): Promise<DiscordMessage[]>;
+  getAllMessages(): Promise<DiscordMessage[]>;
   createMessage(message: InsertDiscordMessage): Promise<DiscordMessage>;
 }
 
@@ -79,24 +80,20 @@ export class MemStorage implements IStorage {
 
   // Initialize with default data for demo purposes
   private initializeDefaultData() {
-    // Sample servers
+    // Sample server - Lace Wallet
     const servers: InsertDiscordServer[] = [
-      { id: "server1", name: "Game Developers", icon: null, isActive: true, lastSynced: new Date() },
-      { id: "server2", name: "JavaScript Community", icon: null, isActive: true, lastSynced: new Date() },
-      { id: "server3", name: "Design Systems", icon: null, isActive: true, lastSynced: new Date() },
-      { id: "server4", name: "AI Researchers", icon: null, isActive: true, lastSynced: new Date() },
-      { id: "server5", name: "Python Developers", icon: null, isActive: true, lastSynced: new Date() }
+      { id: "server1", name: "Lace Wallet", icon: "/assets/lace-avatar.png", isActive: true, lastSynced: new Date() }
     ];
     
     servers.forEach(server => this.createServer(server));
     
-    // Sample channels for Game Developers server
+    // Sample channels for Lace Wallet server
     const channels: InsertDiscordChannel[] = [
       { id: "channel1", serverId: "server1", name: "general", type: "text", isActive: true },
-      { id: "channel2", serverId: "server1", name: "unity-dev", type: "text", isActive: true },
-      { id: "channel3", serverId: "server1", name: "game-design", type: "text", isActive: true },
-      { id: "channel4", serverId: "server2", name: "react", type: "text", isActive: true },
-      { id: "channel5", serverId: "server2", name: "node", type: "text", isActive: true }
+      { id: "channel2", serverId: "server1", name: "support", type: "text", isActive: true },
+      { id: "channel3", serverId: "server1", name: "announcements", type: "text", isActive: true },
+      { id: "channel4", serverId: "server1", name: "feature-requests", type: "text", isActive: true },
+      { id: "channel5", serverId: "server1", name: "cardano-news", type: "text", isActive: true }
     ];
     
     channels.forEach(channel => this.createChannel(channel));
@@ -427,11 +424,14 @@ export class MemStorage implements IStorage {
   }
   
   // Discord messages methods
-  async getChannelMessages(channelId: string, limit: number = 30): Promise<DiscordMessage[]> {
-    return Array.from(this.discordMessages.values())
+  async getChannelMessages(channelId: string, limit?: number): Promise<DiscordMessage[]> {
+    const filteredMessages = Array.from(this.discordMessages.values())
       .filter(message => message.channelId === channelId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limit);
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // If limit is 0 or undefined/null and explicitly set to retrieve all messages, return all messages
+    // Otherwise apply the limit (default to 30 if not specified)
+    return limit === 0 ? filteredMessages : filteredMessages.slice(0, limit || 30);
   }
   
   // Get original messages (first messages in the last 24 hours)
@@ -448,6 +448,11 @@ export class MemStorage implements IStorage {
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .slice(0, limit);
+  }
+  
+  // Get all messages from storage
+  async getAllMessages(): Promise<DiscordMessage[]> {
+    return Array.from(this.discordMessages.values());
   }
   
   async createMessage(message: InsertDiscordMessage): Promise<DiscordMessage> {

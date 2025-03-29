@@ -81,6 +81,11 @@ export const userSettings = pgTable("user_settings", {
   detailLevel: text("detail_level").notNull().default("standard"), // standard, detailed, concise
   emailNotifications: boolean("email_notifications").notNull().default(false),
   webNotifications: boolean("web_notifications").notNull().default(true),
+  // Auto-analysis settings
+  autoAnalysisEnabled: boolean("auto_analysis_enabled").notNull().default(false),
+  defaultEmailRecipient: text("default_email_recipient"),
+  messageThreshold: integer("message_threshold").notNull().default(20),
+  timeThreshold: integer("time_threshold").notNull().default(30), // minutes
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings);

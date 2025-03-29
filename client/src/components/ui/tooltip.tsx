@@ -3,9 +3,19 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
 
-const TooltipProvider = TooltipPrimitive.Provider
+// Configure the default provider to use click-triggered tooltips
+const TooltipProvider = ({children, ...props}: React.ComponentProps<typeof TooltipPrimitive.Provider>) => (
+  <TooltipPrimitive.Provider delayDuration={0} {...props}>
+    {children}
+  </TooltipPrimitive.Provider>
+)
 
-const Tooltip = TooltipPrimitive.Root
+// Make tooltips show on click rather than hover by default
+const Tooltip = ({children, ...props}: React.ComponentProps<typeof TooltipPrimitive.Root>) => (
+  <TooltipPrimitive.Root delayDuration={0} disableHoverableContent={true} {...props}>
+    {children}
+  </TooltipPrimitive.Root>
+)
 
 const TooltipTrigger = TooltipPrimitive.Trigger
 

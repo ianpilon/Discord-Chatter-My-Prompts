@@ -4,7 +4,7 @@ import { fetchChannelMessages, analyzeMessageSentiment } from "@/lib/api";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, formatDistance } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { AnalysisResultsDialog } from "./analysis-results-dialog";
+import { useLocation } from "wouter";
 
 interface DiscordMessage {
   id: string;
@@ -26,9 +26,9 @@ interface MessageListProps {
 const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData }: MessageListProps) => {
   const [expanded, setExpanded] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisButtonState, setAnalysisButtonState] = useState<'idle' | 'clicked'>('idle');
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   
   const {
     data: messagesData,
@@ -103,12 +103,19 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
     },
     onSuccess: (data) => {
       setAnalysisResult(data.analysis);
-      setShowAnalysis(true);
+      
+      // Store analysis result and channel information in localStorage
+      localStorage.setItem('sentimentAnalysisResult', data.analysis);
+      localStorage.setItem('analysisChannelName', channelId);
+      
       toast({
         title: 'Analysis complete',
         description: 'Discord chat sentiment analysis is ready!',
         variant: 'default',
       });
+      
+      // Navigate to analysis page
+      navigate('/analysis');
     },
     onError: (error: any) => {
       toast({
@@ -190,12 +197,19 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
                       
                       // Continue with normal success handling
                       setAnalysisResult(data.analysis);
-                      setShowAnalysis(true);
+                      
+                      // Store analysis result and channel information in localStorage
+                      localStorage.setItem('sentimentAnalysisResult', data.analysis);
+                      localStorage.setItem('analysisChannelName', channelId);
+                      
                       toast({
                         title: 'Analysis complete',
                         description: 'Discord chat sentiment analysis is ready!',
                         variant: 'default',
                       });
+                      
+                      // Navigate to analysis page
+                      navigate('/analysis');
                     },
                     onError: (error: any) => {
                       // Reset button state
@@ -233,6 +247,23 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
                     : 'Analyze this chatter'}
               </button>
             )}
+            
+            {/* View Analysis button if we have analysis results */}
+            {analysisResult && (
+              <button
+                onClick={() => {
+                  // Store analysis result and channel information in localStorage
+                  localStorage.setItem('sentimentAnalysisResult', analysisResult);
+                  localStorage.setItem('analysisChannelName', channelId);
+                  navigate('/analysis');
+                }}
+                className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center gap-1 transition-colors"
+              >
+                <BarChart2 className="h-3 w-3 mr-1" />
+                View Analysis
+              </button>
+            )}
+            
             <button
               onClick={() => setExpanded(!expanded)}
               className="text-xs text-[#72767d] hover:text-[#dcddde]"
@@ -302,12 +333,7 @@ const MessageList = ({ channelId, limit = 10, isTestChannel = false, messageData
         </div>
       )}
       
-      {/* Sentiment Analysis Results Button */}
-      {showAnalysis && analysisResult && (
-        <div className="mt-4 flex justify-end">
-          <AnalysisResultsDialog analysisResult={analysisResult} />
-        </div>
-      )}
+      {/* Sentiment analysis is now shown in a full page view */}
       
       {hasMessages && expanded && (
         <div className="text-center mt-2">

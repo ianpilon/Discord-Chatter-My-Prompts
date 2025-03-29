@@ -1,0 +1,10 @@
+# Discord Bot Token
+DISCORD_BOT_TOKEN=MTM1NDA2NTU3MTg2MzQ2NjA1Ng.GIJY9w.zFG7i5lyiMUpzHsgEVsiwkMjiCeKHihkBj4WnU
+
+# OpenAI API Key for analysis
+OPENAI_API_KEY=sk-ppZg0rB3IWzLmUOKzjMzFDAL_2EuxmTF7EzGGViHHxT3BlbkFJKYwAx5SN_md0DYj0hjEST9AjMmU2msqVoYf3cd2UUA
+
+# Mailjet API credentials for email functionality
+MAILJET_API_KEY=5006ed1f5aec0293a818304266ab313e
+MAILJET_SECRET_KEY=0f791fa6a030b5b70d0c0f2ef7f6c88b
+SENDER_EMAIL=ianpilon@gmail.com

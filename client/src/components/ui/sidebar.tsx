@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings, Hash, ChevronRight, ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import ConnectServerDialog from "./connect-server-dialog";
 
 interface Server {
@@ -31,11 +31,34 @@ const Sidebar = ({
 }) => {
   const [location] = useLocation();
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  const [expandedServers, setExpandedServers] = useState<Record<string, boolean>>({});
+  // Initialize expandedServers from localStorage
+  const [expandedServers, setExpandedServers] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('expandedServers');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error('Error loading expanded servers from localStorage:', e);
+      return {};
+    }
+  });
+  
+  // Save expandedServers to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(expandedServers).length > 0) {
+      localStorage.setItem('expandedServers', JSON.stringify(expandedServers));
+    }
+  }, [expandedServers]);
+  const queryClient = useQueryClient();
+  
+  // Initialize hiddenChannels from localStorage
   const [hiddenChannels, setHiddenChannels] = useState<string[]>(() => {
-    // Try to load hidden channels from localStorage
-    const saved = localStorage.getItem('hiddenChannels');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('hiddenChannels');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Error loading hidden channels from localStorage:', e);
+      return [];
+    }
   });
   
   // Fetch servers
@@ -89,34 +112,53 @@ const Sidebar = ({
     }));
   };
   
-  // Hide a channel
-  const hideChannel = (channelId: string, event: React.MouseEvent) => {
-    // Stop the click from propagating to the channel item
+  // CHANGED APPROACH: Use a direct DOM operation for more reliable hiding
+  const hideChannel = useCallback((channelId: string, event: React.MouseEvent) => {
+    // Prevent event propagation
     event.stopPropagation();
     event.preventDefault();
     
-    console.log('Hiding channel:', channelId);
+    console.log('Hiding channel using new approach:', channelId);
     
-    // Add this channel to the hidden channels list
-    const newHiddenChannels = [...hiddenChannels, channelId];
-    setHiddenChannels(newHiddenChannels);
+    // First, try to find and hide the DOM element directly
+    const channelElement = event.currentTarget.closest('.channel-item');
+    if (channelElement) {
+      // Hide the element immediately for visual feedback
+      channelElement.setAttribute('style', 'display: none !important');
+    }
     
-    // Save to localStorage
-    localStorage.setItem('hiddenChannels', JSON.stringify(newHiddenChannels));
+    // Then update the React state and localStorage
+    setHiddenChannels(prev => {
+      const newHiddenChannels = [...prev, channelId];
+      // Save to localStorage immediately
+      try {
+        localStorage.setItem('hiddenChannels', JSON.stringify(newHiddenChannels));
+      } catch (e) {
+        console.error('Error saving to localStorage:', e);
+      }
+      return newHiddenChannels;
+    });
     
     // If this was the selected channel, clear the selection
     if (channelId === selectedChannelId) {
       onChannelSelect('');
     }
-  };
+    
+    // Force React Query cache invalidation to trigger component updates
+    if (selectedServerId) {
+      queryClient.invalidateQueries({ queryKey: ['/api/servers/', selectedServerId, '/channels'] });
+    }
+  }, [hiddenChannels, selectedChannelId, onChannelSelect, selectedServerId, queryClient]);
   
   // Server and channel items
   const serverItems = useMemo(() => {
+    console.log('Recalculating server items - hidden channels:', hiddenChannels.length);
     return servers.map((server) => {
       const initials = getServerInitials(server.name);
       const bgColor = getServerColor(server.name);
       const isSelected = server.id === selectedServerId;
-      const isExpanded = expandedServers[server.id] || isSelected;
+      // Allow server to be collapsed even when selected
+      const isExpanded = expandedServers[server.id];
       
       // Filter channels for this server
       const serverChannels = channels.filter(channel => channel.serverId === server.id);
@@ -159,39 +201,34 @@ const Sidebar = ({
           {isExpanded && (
             <div className="ml-4 mt-1">
               {serverChannels.length > 0 ? (
-                // Filter out hidden channels
+                // Filter out hidden channels - use memoized value to ensure stable rendering
                 serverChannels.filter(channel => !hiddenChannels.includes(channel.id)).map(channel => (
                   <div
                     key={channel.id}
-                    className={`flex items-center justify-between p-2 pl-3 rounded cursor-pointer group ${
+                    className={`channel-item flex items-center justify-between p-2 pl-3 rounded cursor-pointer group ${
                       channel.id === selectedChannelId 
                         ? 'bg-[#36393f] text-white' 
                         : 'text-[#72767d] hover:bg-[#36393f]/50 hover:text-[#dcddde]'
                     }`}
                     onClick={() => onChannelSelect(channel.id)}
+                    data-channel-id={channel.id}
                   >
                     <div className="flex items-center overflow-hidden">
                       <Hash className="h-4 w-4 mr-1 flex-shrink-0" />
                       <span className="text-sm truncate">{channel.name}</span>
                     </div>
-                    <div
-                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer text-[#72767d] hover:text-white hover:bg-[#ed4245] rounded p-1"
+                    <button
+                      type="button"
+                      className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer text-[#72767d] hover:text-white hover:bg-[#ed4245] rounded p-1 min-w-[24px] min-h-[24px] focus:outline-none focus:ring-2 focus:ring-[#ed4245] focus:opacity-100"
                       onClick={(e) => hideChannel(channel.id, e)}
                       title="Hide channel"
                       aria-label="Hide channel"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          hideChannel(channel.id, e as unknown as React.MouseEvent);
-                        }
-                      }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 6L6 18"></path>
                         <path d="M6 6l12 12"></path>
                       </svg>
-                    </div>
+                    </button>
                   </div>
                 ))
               ) : (
@@ -228,7 +265,7 @@ const Sidebar = ({
         </div>
       );
     });
-  }, [servers, channels, selectedServerId, selectedChannelId, expandedServers, isLoadingChannels, onServerSelect, onChannelSelect]);
+  }, [servers, channels, selectedServerId, selectedChannelId, expandedServers, hiddenChannels, isLoadingChannels, onServerSelect, onChannelSelect]);
   
   return (
     <aside className="bg-[#202225] w-full md:w-16 lg:w-64 flex-shrink-0 overflow-hidden flex flex-col h-full">
