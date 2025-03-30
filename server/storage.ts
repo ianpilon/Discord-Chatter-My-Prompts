@@ -52,7 +52,7 @@ export class MemStorage implements IStorage {
   private discordChannels: Map<string, DiscordChannel>;
   private channelSummaries: Map<number, ChannelSummary>;
   private serverStats: Map<number, ServerStats>;
-  private userSettings: Map<string, UserSettings>;
+  private userSettings: Map<number, UserSettings>;
   private discordMessages: Map<string, DiscordMessage>;
   
   private userCurrentId: number;
@@ -408,22 +408,18 @@ export class MemStorage implements IStorage {
       summaryFrequency: settings.summaryFrequency !== undefined ? settings.summaryFrequency : "24h",
       detailLevel: settings.detailLevel !== undefined ? settings.detailLevel : "standard",
       emailNotifications: settings.emailNotifications !== undefined ? settings.emailNotifications : false,
-      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true,
-      autoAnalysisEnabled: settings.autoAnalysisEnabled !== undefined ? settings.autoAnalysisEnabled : false,
-      defaultEmailRecipient: settings.defaultEmailRecipient !== undefined ? settings.defaultEmailRecipient : null,
-      messageThreshold: settings.messageThreshold !== undefined ? settings.messageThreshold : 20,
-      timeThreshold: settings.timeThreshold !== undefined ? settings.timeThreshold : 30
+      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true
     };
-    this.userSettings.set(id.toString(), newSettings);
+    this.userSettings.set(id, newSettings);
     return newSettings;
   }
 
   async updateUserSettings(id: number, settingsUpdate: Partial<InsertUserSettings>): Promise<UserSettings | undefined> {
-    const settings = this.userSettings.get(id.toString());
+    const settings = this.userSettings.get(id);
     if (!settings) return undefined;
     
-    const updatedSettings: UserSettings = { ...settings, ...settingsUpdate };
-    this.userSettings.set(settings.id.toString(), updatedSettings);
+    const updatedSettings = { ...settings, ...settingsUpdate };
+    this.userSettings.set(id, updatedSettings);
     return updatedSettings;
   }
   
