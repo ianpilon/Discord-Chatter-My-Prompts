@@ -52,7 +52,7 @@ export class MemStorage implements IStorage {
   private discordChannels: Map<string, DiscordChannel>;
   private channelSummaries: Map<number, ChannelSummary>;
   private serverStats: Map<number, ServerStats>;
-  private userSettings: Map<number, UserSettings>;
+  private userSettings: Map<string, UserSettings>;
   private discordMessages: Map<string, DiscordMessage>;
   
   private userCurrentId: number;
@@ -408,18 +408,22 @@ export class MemStorage implements IStorage {
       summaryFrequency: settings.summaryFrequency !== undefined ? settings.summaryFrequency : "24h",
       detailLevel: settings.detailLevel !== undefined ? settings.detailLevel : "standard",
       emailNotifications: settings.emailNotifications !== undefined ? settings.emailNotifications : false,
-      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true
+      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true,
+      autoAnalysisEnabled: settings.autoAnalysisEnabled !== undefined ? settings.autoAnalysisEnabled : false,
+      defaultEmailRecipient: settings.defaultEmailRecipient !== undefined ? settings.defaultEmailRecipient : null,
+      messageThreshold: settings.messageThreshold !== undefined ? settings.messageThreshold : 20,
+      timeThreshold: settings.timeThreshold !== undefined ? settings.timeThreshold : 30
     };
-    this.userSettings.set(id, newSettings);
+    this.userSettings.set(id.toString(), newSettings);
     return newSettings;
   }
 
   async updateUserSettings(id: number, settingsUpdate: Partial<InsertUserSettings>): Promise<UserSettings | undefined> {
-    const settings = this.userSettings.get(id);
+    const settings = this.userSettings.get(id.toString());
     if (!settings) return undefined;
     
-    const updatedSettings = { ...settings, ...settingsUpdate };
-    this.userSettings.set(id, updatedSettings);
+    const updatedSettings: UserSettings = { ...settings, ...settingsUpdate };
+    this.userSettings.set(settings.id.toString(), updatedSettings);
     return updatedSettings;
   }
   
