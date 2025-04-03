@@ -196,9 +196,9 @@ export class MemStorage implements IStorage {
     const realServers = servers.filter(server => server.id.length > 10);
     const sampleServers = servers.filter(server => server.id.length <= 10);
     
-    // If we have real Discord servers, only return those
-    // Otherwise, fall back to sample servers
-    return realServers.length > 0 ? realServers : sampleServers;
+    // Return both real and sample servers together
+    // This allows demo servers like "Lace Wallet" to remain visible even when real servers are connected
+    return [...realServers, ...sampleServers];
   }
 
   async getServer(id: string): Promise<DiscordServer | undefined> {

@@ -1,0 +1,97 @@
+# API Reference
+
+## Discord Integration
+
+### Get Servers
+```typescript
+GET /api/servers
+Response: { servers: DiscordServer[] }
+```
+
+### Get Channels
+```typescript
+GET /api/servers/:serverId/channels
+Response: { channels: DiscordChannel[] }
+```
+
+### Get Messages
+```typescript
+GET /api/channels/:channelId/messages
+Query: { all?: boolean }
+Response: { messages: DiscordMessage[] }
+```
+
+## Analysis Endpoints
+
+### Sentiment Analysis
+```typescript
+POST /api/channels/:channelId/analyze-sentiment
+Body: { messages: DiscordMessage[] }
+Response: {
+  analysis: string,
+  messagesAnalyzed: number,
+  generatedAt: string
+}
+```
+
+### JTBD Analysis
+```typescript
+POST /api/channels/:channelId/analyze-jtbd
+Body: { messages: DiscordMessage[] }
+Response: {
+  analysis: string,
+  messagesAnalyzed: number,
+  generatedAt: string
+}
+```
+
+## Authentication
+
+### Update Discord Token
+```typescript
+POST /api/discord/token
+Body: { token: string }
+Response: { valid: boolean, message: string }
+```
+
+## Types
+
+### Server
+```typescript
+interface Server {
+  id: string;
+  name: string;
+  icon: string | null;
+  isActive: boolean;
+  lastSynced: string;
+}
+```
+
+### Channel
+```typescript
+interface Channel {
+  id: string;
+  serverId: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+}
+```
+
+### Message
+```typescript
+interface DiscordMessage {
+  id: string;
+  channelId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+  processedAt: string;
+  author?: {
+    id: string;
+    username: string;
+    avatarURL?: string;
+    discriminator?: string;
+  };
+}

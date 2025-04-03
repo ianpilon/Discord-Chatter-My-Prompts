@@ -1,0 +1,119 @@
+# Deployment Guide
+
+## Vercel Deployment
+
+### Prerequisites
+
+1. Vercel account connected to your GitHub repository
+2. Neon database (or other PostgreSQL provider)
+3. Discord bot token
+4. Mailjet API credentials
+5. OpenAI API key
+
+### Environment Variables
+
+Configure these in your Vercel project settings:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NODE_ENV` | Set to `production` | Yes |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `DISCORD_BOT_TOKEN` | Discord bot token | Yes |
+| `OPENAI_API_KEY` | OpenAI API key | Yes |
+| `MAILJET_API_KEY` | Mailjet API key | Yes |
+| `MAILJET_SECRET_KEY` | Mailjet secret | Yes |
+| `SENDER_EMAIL` | Notification sender email | Yes |
+| `CRON_SECRET` | Cron authentication token | Yes |
+
+### Deployment Steps
+
+1. Push code to GitHub
+2. Import repository in Vercel
+3. Configure environment variables
+4. Deploy
+
+## GitHub Actions Setup
+
+### Auto-Analysis Workflow
+
+Create `.github/workflows/trigger-analysis.yml`:
+
+```yaml
+name: Trigger Auto-Analysis
+on:
+  schedule:
+    - cron: '0 * * * *'  # Hourly
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Analysis
+        run: |
+          curl -X POST ${{ secrets.ANALYSIS_ENDPOINT }} \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+```
+
+### Repository Secrets
+
+Add to GitHub repository:
+
+| Secret | Description | Example |
+|--------|-------------|----------|
+| `ANALYSIS_ENDPOINT` | Analysis endpoint URL | `https://your-app.vercel.app/api/cron/auto-analysis` |
+| `CRON_SECRET` | Authentication token | `your-secure-token` |
+
+## Serverless Considerations
+
+### 1. No Persistent Connections
+- Discord connection per-request
+- Serverless database client
+- Stateless architecture
+
+### 2. Cold Starts
+- Initial request delay
+- Function warm-up strategies
+- Cache optimization
+
+### 3. Function Limits
+- 1024MB memory limit
+- Execution timeout
+- Payload size restrictions
+
+## Testing Deployment
+
+1. Connect Discord bot
+2. Verify message display
+3. Test email notifications
+4. Check auto-analysis
+
+## Troubleshooting
+
+### Common Issues
+
+1. MIME Type Errors
+```json
+{
+  "headers": [
+    {
+      "source": "/(.*).js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/javascript; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}
+```
+
+2. API Route 404s
+- Correct path: `/api/cron/auto-analysis.ts`
+- Incorrect: `/server/api/cron/auto-analysis.ts`
+
+3. URL Configuration
+- Verify deployment URL
+- Update GitHub secrets
+- Check endpoint paths

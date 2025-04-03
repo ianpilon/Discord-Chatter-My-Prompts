@@ -1,0 +1,52 @@
+# Getting Started
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+1. Node.js and npm installed
+2. Discord bot token with proper permissions
+3. OpenAI API key
+4. Mailjet API credentials (for email functionality)
+5. PostgreSQL database (Neon recommended for serverless)
+
+## Environment Setup
+
+Create a `.env` file with the following variables:
+
+```env
+NODE_ENV=development
+DATABASE_URL=your_postgres_url
+DISCORD_BOT_TOKEN=your_discord_token
+OPENAI_API_KEY=your_openai_key
+MAILJET_API_KEY=your_mailjet_key
+MAILJET_SECRET_KEY=your_mailjet_secret
+SENDER_EMAIL=your_sender_email
+CRON_SECRET=your_cron_secret
+```
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/discord-digest.git
+cd discord-digest
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+4. Access the application at `http://localhost:3001`
+
+## Next Steps
+
+- [Learn about the architecture](/architecture)
+- [Explore the API reference](/api-reference)
+- [Read the deployment guide](/deployment)

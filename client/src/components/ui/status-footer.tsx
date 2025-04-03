@@ -67,6 +67,8 @@ const StatusFooter = () => {
         <span>© {new Date().getFullYear()} Discord Chatter</span>
         <span className="mx-2">|</span>
         <span>v1.0.0</span>
+        <span className="mx-2">|</span>
+        <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:underline transition-colors">Documentation</a>
       </div>
       <div className="flex items-center">
         <span className="flex items-center mr-4">

@@ -1,0 +1,71 @@
+# Architecture Overview
+
+## Directory Structure
+
+```
+/
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/              # UI components
+│   │   ├── hooks/               # Custom React hooks
+│   │   ├── lib/                 # Utilities and API clients
+│   │   └── pages/              # Page components
+├── server/
+│   ├── index.ts                # Server entry point
+│   ├── routes.ts              # API routes
+│   ├── discord.ts             # Discord integration
+│   ├── openai.ts             # OpenAI integration
+│   └── storage.ts            # Data persistence
+└── docs/                     # Documentation
+```
+
+## Data Flow
+
+### Message Retrieval
+1. User selects channel
+2. Frontend requests messages
+3. Backend fetches from Discord
+4. React Query caches results
+5. UI displays messages
+
+### Analysis Process
+1. User initiates analysis
+2. Parallel sentiment and JTBD analysis
+3. Results cached in localStorage
+4. Analysis displayed in drawer
+
+## State Management
+
+### React Query
+- API request caching
+- Loading states
+- Error handling
+
+### Local Storage
+- Analysis results
+- UI state persistence
+- Session tracking
+
+## Components
+
+### Frontend
+- Modern React components
+- TypeScript for type safety
+- Tailwind CSS for styling
+- shadcn/ui component library
+
+### Backend
+- Express.js server
+- Discord bot integration
+- OpenAI API integration
+- PostgreSQL database
+
+## Deployment
+
+The application is designed for serverless deployment on Vercel:
+
+- No persistent connections
+- Serverless database (Neon)
+- Cron jobs via GitHub Actions
+- Cold start optimization
