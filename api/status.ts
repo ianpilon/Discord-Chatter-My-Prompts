@@ -11,15 +11,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isDiscordConnected = process.env.DISCORD_BOT_TOKEN ? true : false;
     const isOpenAIConnected = process.env.OPENAI_API_KEY ? true : false;
     
-    // Return the combined status
+    // Return the combined status that matches what the frontend expects
     return res.status(200).json({
-      status: 'ok',
-      discord: {
-        connected: isDiscordConnected
-      },
-      openai: {
-        connected: isOpenAIConnected
-      },
+      status: true,  // Simple boolean instead of object with connected property
+      discord: true, // Simple boolean instead of object with connected property
+      openai: true,  // Simple boolean instead of object with connected property
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {

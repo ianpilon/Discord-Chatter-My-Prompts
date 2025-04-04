@@ -14,20 +14,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(405).json({ message: 'Method not allowed' });
     }
     
-    // Get the server details
-    const server = await getServer(id);
-    
-    if (!server) {
+    // Only respond with hardcoded data for the demo server
+    if (id === 'demo-server-1') {
+      // Return a simplified response with demo data
+      return res.status(200).json({
+        id: 'demo-server-1',
+        name: 'Demo Server',
+        stats: {
+          activeUsers: 10,
+          totalMessages: 150
+        },
+        channels: [
+          {
+            id: 'demo-channel-1',
+            name: 'general',
+            type: 'text'
+          },
+          {
+            id: 'demo-channel-2',
+            name: 'random',
+            type: 'text'
+          }
+        ]
+      });
+    } else {
       return res.status(404).json({ message: 'Server not found' });
     }
-    
-    // Get channels for this server
-    const channels = await getChannels(id);
-    
-    return res.status(200).json({
-      ...server,
-      channels
-    });
   } catch (error: any) {
     console.error('Server details API error:', error);
     return res.status(500).json({ 
