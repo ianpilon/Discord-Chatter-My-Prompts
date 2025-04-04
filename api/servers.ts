@@ -8,19 +8,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(405).json({ message: 'Method not allowed' });
     }
     
-    // Return a simplified response with demo data
-    return res.status(200).json({ 
-      servers: [
-        {
-          id: 'demo-server-1',
-          name: 'Demo Server',
-          stats: {
-            activeUsers: 10,
-            totalMessages: 150
-          }
+    // Return a simplified response with demo data as a flat array
+    // Important: The frontend expects a direct array, not wrapped in a 'servers' object
+    return res.status(200).json([
+      {
+        id: 'demo-server-1',
+        name: 'Demo Server',
+        icon: null, // Ensure this is included to match expected format
+        stats: {
+          activeUsers: 10,
+          totalMessages: 150
         }
-      ] 
-    });
+      }
+    ]);
   } catch (error: any) {
     console.error('Servers API error:', error);
     return res.status(500).json({ 
