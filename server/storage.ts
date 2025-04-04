@@ -408,7 +408,11 @@ export class MemStorage implements IStorage {
       summaryFrequency: settings.summaryFrequency !== undefined ? settings.summaryFrequency : "24h",
       detailLevel: settings.detailLevel !== undefined ? settings.detailLevel : "standard",
       emailNotifications: settings.emailNotifications !== undefined ? settings.emailNotifications : false,
-      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true
+      webNotifications: settings.webNotifications !== undefined ? settings.webNotifications : true,
+      autoAnalysisEnabled: settings.autoAnalysisEnabled !== undefined ? settings.autoAnalysisEnabled : false,
+      defaultEmailRecipient: settings.defaultEmailRecipient || null,
+      messageThreshold: settings.messageThreshold !== undefined ? settings.messageThreshold : 5,
+      timeThreshold: settings.timeThreshold !== undefined ? settings.timeThreshold : 5
     };
     this.userSettings.set(id, newSettings);
     return newSettings;

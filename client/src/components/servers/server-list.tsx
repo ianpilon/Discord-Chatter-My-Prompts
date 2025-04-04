@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchServerDetails } from "@/lib/api";
+import { fetchServers } from "@/lib/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,7 +16,7 @@ interface ServerListProps {
 export function ServerList({ onServerSelect, selectedServerId }: ServerListProps) {
   const { data: servers, isLoading } = useQuery({
     queryKey: ["servers"],
-    queryFn: () => fetchServerDetails(),
+    queryFn: () => fetchServers(),
   });
 
   if (isLoading) {
@@ -40,7 +40,7 @@ export function ServerList({ onServerSelect, selectedServerId }: ServerListProps
   return (
     <ScrollArea className="h-[calc(100vh-10rem)]">
       <div className="space-y-3 pr-4">
-        {servers?.map((server) => (
+        {servers?.map((server: any) => (
           <Card
             key={server.id}
             className={`p-4 transition-colors hover:bg-accent/50 ${
