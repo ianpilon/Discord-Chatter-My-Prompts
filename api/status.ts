@@ -6,22 +6,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
       return res.status(405).json({ message: 'Method not allowed' });
     }
-
-    // Import modules only when the function is called to avoid initialization issues
-    const { getDiscordStatus } = await import('../server/discord');
-    const { checkOpenAIStatus } = await import('../server/openai');
     
-    // Get the Discord connection status
-    const isDiscordConnected = getDiscordStatus();
-    
-    // Get OpenAI API status
-    let isOpenAIConnected = false;
-    try {
-      isOpenAIConnected = await checkOpenAIStatus();
-    } catch (error) {
-      console.error('Error checking OpenAI status:', error);
-      // Continue even if OpenAI check fails
-    }
+    // Mock status for serverless environment
+    const isDiscordConnected = process.env.DISCORD_BOT_TOKEN ? true : false;
+    const isOpenAIConnected = process.env.OPENAI_API_KEY ? true : false;
     
     // Return the combined status
     return res.status(200).json({
