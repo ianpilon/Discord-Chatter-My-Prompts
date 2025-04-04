@@ -1,6 +1,16 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
+  "builds": [
+    { "src": "index.js", "use": "@vercel/node" },
+    { "src": "api/**/*.ts", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/channels/([^/]+)/([^/]+)", "dest": "/api/channel-operations?id=$1&operation=$2" },
+    { "src": "/api/servers$", "dest": "/api/server-operations" },
+    { "src": "/api/servers/([^/]+)$", "dest": "/api/server-operations?id=$1" },
+    { "src": "/api/servers/([^/]+)/([^/]+)", "dest": "/api/server-operations?id=$1&operation=$2" },
+    { "src": "/.*", "dest": "/" }
+  ],
   "outputDirectory": "dist/public",
   "framework": "vite",
   "rewrites": [
